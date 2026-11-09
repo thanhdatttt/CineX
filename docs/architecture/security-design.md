@@ -30,7 +30,7 @@ Redis-outage behavior is route-specific: fail sensitive writes/authentication cl
 ## Input, secrets, and payment events
 
 - Validate and normalize request data, apply request/body size limits, use parameterized database access, and avoid unsafe SQL interpolation.
-- Store secrets only in environment configuration; `.env.example` has placeholders. Do not commit actual JWT, database, Redis, or mock-gateway secrets. Fail startup clearly when required values are missing.
+- Store secrets only in environment/secret configuration; `.env.example` has placeholders, including a placeholder Neon `DATABASE_URL`. Do not commit actual `.env` files or JWT, Neon database connection string, Redis, or mock-gateway secrets; ensure `.env` is Git-ignored. Fail startup clearly when required values are missing.
 - Verify webhook signatures with constant-time comparison, validate event schema and amount/currency/references, persist and deduplicate receipt before processing, and safely quarantine invalid/mismatched events. Frontend redirects are never payment proof.
 - Return generic safe errors. Never expose stack traces, SQL, secrets, provider credentials, password/token values, or sensitive payment payload fields in logs or responses.
 

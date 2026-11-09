@@ -1,6 +1,6 @@
 # Database Design
 
-PostgreSQL is the authority for inventory and transaction state. Prisma schema and migrations define the model; use migrations for constraints/indexes Prisma cannot express. Persist UTC timestamps and exact money (integer minor units for VND or exact decimal), never floating point.
+Neon-hosted PostgreSQL is the database for all environments and the authority for inventory and transaction state. Prisma connects using a connection string supplied through environment variables and manages schema/migrations; use migrations for constraints/indexes Prisma cannot express. Use isolated Neon targets for development and integration tests; never run destructive tests or development seeds against production. Docker does not run PostgreSQL. Persist UTC timestamps and exact money (integer minor units for VND or exact decimal), never floating point.
 
 ## Entities and ownership
 

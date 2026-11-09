@@ -9,7 +9,7 @@ The core invariant is one active owner at most for each `(showtime, seat)`, incl
 
 ## Decision
 
-Use PostgreSQL as the source of truth and Prisma for schema/migrations. Store one `ShowtimeSeat` inventory row per screening and physical seat, with unique `(showtime_id, seat_id)`. Do not put availability on the reusable physical `Seat`.
+Use Neon-hosted PostgreSQL as the source of truth in every environment and Prisma for schema/migrations. Store one `ShowtimeSeat` inventory row per screening and physical seat, with unique `(showtime_id, seat_id)`. Do not put availability on the reusable physical `Seat`. Development and integration tests use isolated Neon databases/branches, never a PostgreSQL service in Docker and never production credentials/data.
 
 For a reservation, begin a short transaction, select the requested inventory rows `FOR UPDATE` in deterministic seat-ID order, verify all rows exist for the selected showtime and are available (or safely reclaimable), then update ownership/state and insert reservation/items/idempotency result. If any row fails validation, roll back the entire transaction. Use parameterized raw SQL for locking if the Prisma API in use does not provide it. Retain conditional state-and-owner updates and unique constraints as defenses on every path.
 

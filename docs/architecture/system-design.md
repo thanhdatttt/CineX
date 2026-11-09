@@ -15,7 +15,7 @@ CineX is one deployable NestJS modular monolith and a React + TypeScript client 
 | `tickets` | Ticket issuance and one-time admission validation |
 | `jobs`, `outbox`, `health` | Durable asynchronous work and operational endpoints |
 
-Controllers handle HTTP mapping, DTO validation, authentication/authorization guards, and response formatting. Application services implement use cases and state transitions. Prisma is the persistence adapter; a gateway interface isolates payment simulation. Frontend logic is for presentation and recovery only, never authoritative pricing, availability, authorization, or payment confirmation.
+Controllers handle HTTP mapping, DTO validation, authentication/authorization guards, and response formatting. Application services implement use cases and state transitions. Prisma is the persistence adapter for Neon-hosted PostgreSQL; a gateway interface isolates payment simulation. Frontend logic is for presentation and recovery only, never authoritative pricing, availability, authorization, or payment confirmation.
 
 ## State and consistency
 

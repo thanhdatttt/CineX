@@ -138,15 +138,15 @@ intended baseline is:
   Frontend                           React + TypeScript
   UI                                 Tailwind CSS
   Backend                            NestJS
-  Database                           PostgreSQL
-  ORM                                Prisma
+  Database                           PostgreSQL hosted on Neon
+  ORM / schema / migrations          Prisma
   Cache / distributed coordination   Redis
   Background jobs                    BullMQ
   Authentication                     JWT
   Payment                            Internal Mock Payment Gateway
   Unit/integration tests             Jest + Supertest
   Load testing                       k6
-  Local infrastructure               Docker / Docker Compose
+  Local infrastructure               Docker / Docker Compose for backend, frontend, and optional Redis; database remains Neon-hosted
   CI                                 GitHub Actions
 
 ### 3.1 Architecture style
@@ -181,7 +181,7 @@ another module's internals.
 
 ### 3.2 System design principles
 
--   PostgreSQL is the source of truth for inventory, reservation
+-   Neon-hosted PostgreSQL is the production source of truth for inventory, reservation
     ownership, bookings, and payment records.
 -   Redis is an optimization/coordination component, not the authority
     for whether a seat is sold.
@@ -1042,9 +1042,10 @@ Ticket validation rules. - Price calculation and rounding.
 
 ### 12.2 Integration tests
 
-Use a real PostgreSQL test database where transaction/locking semantics
-matter. Mock external gateway behavior, but do not mock away the
-database concurrency mechanism.
+Use a real, isolated Neon PostgreSQL test database where transaction/
+locking semantics matter. Mock external gateway behavior, but do not
+mock away the database concurrency mechanism. Never run destructive
+tests, seed data, or test migrations against production Neon data.
 
 Required scenarios:
 
@@ -1139,15 +1140,21 @@ time zone consistently.
 ## 14. Configuration and Local Development
 
 Provide `.env.example` with descriptions and safe placeholders for: -
-Application port and environment. - Database connection. - Redis
+Application port and environment. - Neon PostgreSQL connection string
+(for example, `DATABASE_URL`, placeholder only). - Redis
 connection. - JWT secret and expiry. - Reservation hold duration
 (default five minutes). - Payment processing/reconciliation timeout. -
 Mock gateway signing secret. - Queue configuration. - Frontend API base
 URL.
 
-Provide Docker Compose for the dependencies required by the repository
-(at minimum PostgreSQL and Redis; include app services if the current
-project uses that pattern).
+Use Neon PostgreSQL for all application data. Prisma connects to Neon
+using a connection string supplied through environment configuration
+and manages schema/migrations. Docker Compose runs the backend and
+frontend and may run Redis; it must not run PostgreSQL. Development,
+test, and production must use separate Neon databases/branches or other
+isolated Neon targets. Document Neon connection configuration and keep
+connection strings/secrets out of version control. Include app services
+in Docker Compose.
 
 Document commands for: - Install dependencies. - Start infrastructure. -
 Run migrations. - Seed development data. - Start backend/frontend. - Run
@@ -1315,7 +1322,7 @@ with links/paths to implementation and test evidence.
 ### Quality and delivery
 
 -   [ ] Unit and integration tests pass.
--   [ ] PostgreSQL concurrency tests pass.
+-   [ ] PostgreSQL concurrency tests pass against an isolated Neon test target.
 -   [ ] k6 contention test demonstrates exactly one owner for one seat.
 -   [ ] Lint, type-check, and build pass.
 -   [ ] Docker/local setup works from a clean checkout.
