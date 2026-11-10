@@ -126,6 +126,27 @@ Do not implement these before all mandatory requirements are complete:
 -   WebSocket real-time updates (a later enhancement; polling or refresh
     may be used initially).
 
+### 2.4 Optional external support integrations
+
+TMDB and VietQR may be integrated as supporting utilities only. They are
+not standalone CineX product features, are not required for MVP delivery,
+and must not become sources of truth for CineX business state.
+
+- **TMDB:** May help staff search/import movie metadata or artwork into
+  CineX. Movie records used by CineX remain stored and managed in CineX;
+  cinema schedules, ticket prices, and publication status are always
+  controlled by CineX. Respect TMDB attribution and licensing terms.
+- **VietQR:** May help generate/display a bank-transfer QR for a payment
+  attempt. Generating or scanning a QR, a client redirect, or a client
+  success message does not prove payment. Only a verified server-side
+  result from the configured payment/bank integration may change payment
+  or booking state.
+
+These integrations are optional adapters and can be omitted or replaced
+without changing core customer, reservation, booking, or payment rules.
+They do not replace the mock payment gateway required for the baseline
+implementation or its webhook/idempotency requirements.
+
 ------------------------------------------------------------------------
 
 ## 3. Technology and Architecture Constraints

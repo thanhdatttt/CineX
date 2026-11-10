@@ -26,8 +26,10 @@ Cancellation/refund cutoff, refund amount, fee/voucher handling, and when seats 
 
 - [Product and engineering requirements](../requirements.md)
 - [System design](../architecture/system-design.md)
+- [Project structure](../architecture/project-structure.md)
 - [API design](../architecture/api-design.md)
 - [Database design](../architecture/database-design.md)
 - [Security design](../architecture/security-design.md)
 - [Architecture decisions](../architecture/decisions/)
 - [Neon PostgreSQL hosting decision](../architecture/decisions/ADR-008-neon-postgres-hosting.md)
+- [Optional TMDB and VietQR support integrations](../architecture/decisions/ADR-009-optional-tmdb-vietqr.md)

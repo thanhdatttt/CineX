@@ -4,6 +4,8 @@
 
 CineX is one deployable NestJS modular monolith and a React + TypeScript client styled with Tailwind CSS. Do not split it into services. Keep each module's persistence and rules behind its application services; other modules call those services rather than importing controllers or reaching into internals.
 
+See [Project Structure](project-structure.md) for the proposed repository and module layout.
+
 | Module | Owns |
 |---|---|
 | `auth`, `users` | Credentials, JWT identity, roles, user status |
@@ -16,6 +18,10 @@ CineX is one deployable NestJS modular monolith and a React + TypeScript client 
 | `jobs`, `outbox`, `health` | Durable asynchronous work and operational endpoints |
 
 Controllers handle HTTP mapping, DTO validation, authentication/authorization guards, and response formatting. Application services implement use cases and state transitions. Prisma is the persistence adapter for Neon-hosted PostgreSQL; a gateway interface isolates payment simulation. Frontend logic is for presentation and recovery only, never authoritative pricing, availability, authorization, or payment confirmation.
+
+## Optional external support integrations
+
+TMDB and VietQR are optional support adapters, not core product features or sources of truth. TMDB may assist movie metadata/artwork import; CineX owns the persisted movie record and all schedule/pricing/publication data. VietQR may render a bank-transfer QR for a payment attempt, but the QR or browser return cannot confirm payment. Only a verified server-side provider/bank result may transition payment and booking state. These integrations can be omitted without affecting core flows; the baseline mock gateway remains required.
 
 ## State and consistency
 
