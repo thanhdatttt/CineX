@@ -1,5 +1,7 @@
 # M0-T03 — Add configuration and quality baseline
 
+**Status:** Complete (2026-11-11). Startup validation, safe environment examples, documented Neon target separation, health endpoint, and root quality commands are in place; unit/e2e, build, lint, typecheck, and Prisma checks passed.
+
 **Objective.** Define safe startup configuration and repeatable quality commands for the new codebase.
 
 **Requirements references.** `requirements.md` §1, §14, §12.4; ADR-001, ADR-003.

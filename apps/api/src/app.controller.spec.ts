@@ -19,4 +19,8 @@ describe('AppController', () => {
       expect(appController.getHello()).toBe('Hello World!');
     });
   });
+
+  it('reports a healthy API status', () => {
+    expect(appController.getHealth()).toEqual({ status: 'ok' });
+  });
 });

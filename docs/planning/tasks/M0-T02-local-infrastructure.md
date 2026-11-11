@@ -1,5 +1,7 @@
 # M0-T02 — Configure Neon and local Docker services
 
+**Status:** Complete (2026-11-11). Compose config validated; API/web images built and reached healthy status, and optional Redis reached healthy status. Compose defines no PostgreSQL service.
+
 **Objective.** Run backend/frontend and optional Redis through Docker Compose, with Prisma connecting to Neon PostgreSQL.
 
 **Requirements references.** `requirements.md` §14; ADR-001, ADR-002, ADR-006.

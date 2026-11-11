@@ -1,0 +1,15 @@
+{
+  "name": "cinex",
+  "private": true,
+  "scripts": {
+    "install:all": "npm ci --prefix apps/api && npm ci --prefix apps/web",
+    "dev": "npm run dev:api & npm run dev:web & wait",
+    "dev:api": "npm run start:dev --prefix apps/api",
+    "dev:web": "npm run dev --prefix apps/web",
+    "lint": "npm run lint --prefix apps/api && npm run lint --prefix apps/web",
+    "typecheck": "npm run typecheck --prefix apps/api && npm run typecheck --prefix apps/web",
+    "test": "npm run test --prefix apps/api -- --runInBand",
+    "test:e2e": "npm run test:e2e --prefix apps/api -- --runInBand",
+    "build": "npm run build --prefix apps/api && npm run build --prefix apps/web"
+  }
+}

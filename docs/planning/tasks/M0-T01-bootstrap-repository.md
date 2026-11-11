@@ -1,5 +1,7 @@
 # M0-T01 — Bootstrap the application workspace
 
+**Status:** Complete (2026-11-11). Root scripts, API/web builds, lint, typecheck, and unit tests passed; both Docker app health checks passed.
+
 **Objective.** Establish the smallest runnable React/TypeScript + Tailwind client and NestJS modular-monolith API, preserving repository conventions where they exist.
 
 **Requirements references.** `requirements.md` §1, §3, §14, §15 Phase 0; ADR-001.
