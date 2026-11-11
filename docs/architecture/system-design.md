@@ -21,7 +21,7 @@ Controllers handle HTTP mapping, DTO validation, authentication/authorization gu
 
 ## Optional external support integrations
 
-TMDB and VietQR are optional support adapters, not core product features or sources of truth. TMDB may assist movie metadata/artwork import; CineX owns the persisted movie record and all schedule/pricing/publication data. VietQR may render a bank-transfer QR for a payment attempt, but the QR or browser return cannot confirm payment. Only a verified server-side provider/bank result may transition payment and booking state. These integrations can be omitted without affecting core flows; the baseline mock gateway remains required.
+TMDB and VietQR are optional support adapters, not core product features or sources of truth. For TMDB, the backend may expose admin-only search/review operations and an explicit import action that persists selected metadata/artwork as an editable CineX movie record. TMDB credentials and calls stay server-side. Customer catalogue/detail requests read CineX's persisted database records only and never proxy to TMDB; manual catalogue management and public reads continue if TMDB is missing or unavailable. CineX owns movie records after import and all schedule/pricing/publication data. VietQR may render a bank-transfer QR for a payment attempt, but the QR or browser return cannot confirm payment. Only a verified server-side provider/bank result may transition payment and booking state. These integrations can be omitted without affecting core flows; the baseline mock gateway remains required.
 
 ## State and consistency
 
