@@ -35,7 +35,7 @@ The API listens on `http://localhost:3000` and the client on `http://localhost:5
 
 ## Neon environment setup
 
-Create separate, isolated Neon databases or branches for development, automated tests, and production. Do not share production credentials with local development, CI, seeds, or destructive tests. `apps/api/.env.test.example` documents the test-only variable; copy it to the ignored `apps/api/.env.test`, and explicitly export its `DATABASE_URL_TEST` value as `DATABASE_URL` only for a test command that needs PostgreSQL. Keep production credentials in deployment secret storage, separate from both local files.
+Create separate, isolated Neon databases or branches for development, automated tests, and production. Do not share production credentials with local development, CI, seeds, or destructive tests. Use `apps/api/.env.example` as the single template. For a test command that needs PostgreSQL, supply the isolated test target's connection string as `DATABASE_URL` for that command; keep test credentials in a separate ignored local env file or CI secret, and keep production credentials in deployment secret storage.
 
 Create the API environment file from the placeholder template and replace `DATABASE_URL` with the connection string for the development target:
 
@@ -43,7 +43,7 @@ Create the API environment file from the placeholder template and replace `DATAB
 cp apps/api/.env.example apps/api/.env
 ```
 
-The example contains placeholders only. Real `.env` files are Git-ignored. Keep the test connection string in a separate secret/configuration source and explicitly select it only for integration tests; never point tests or `migrate dev` at production.
+The example contains placeholders only. Real `.env` files are Git-ignored. Keep development, test, and production connection strings in separate secret/configuration sources and explicitly select the appropriate isolated target; never point tests or `migrate dev` at production.
 
 | Variable | Default | Purpose |
 |---|---:|---|
@@ -72,13 +72,19 @@ Deploy committed migrations only to the explicitly selected target with `npm run
 
 ## Docker Compose
 
-After creating `apps/api/.env`, run the API and web app:
+After creating `apps/api/.env` and setting its development Neon connection string as described above, build and run the API and web containers:
 
 ```sh
 docker compose -f infrastructure/docker/compose.yml up --build
 ```
 
-The web app is available at <http://localhost:5173>, the API at <http://localhost:3000>, and its health check at <http://localhost:3000/health>. To include optional Redis:
+The containers are named `cinex-api` and `cinex-web`. The web app is available at <http://localhost:5173>, the API at <http://localhost:3000>, and its health check at <http://localhost:3000/health>. Inspect container and health-check status with:
+
+```sh
+docker compose -f infrastructure/docker/compose.yml ps
+```
+
+To include optional Redis:
 
 ```sh
 docker compose -f infrastructure/docker/compose.yml --profile redis up --build
@@ -89,6 +95,8 @@ Stop services with:
 ```sh
 docker compose -f infrastructure/docker/compose.yml down
 ```
+
+To rebuild after changing application code or dependencies, run `docker compose -f infrastructure/docker/compose.yml up --build` again. To start in the background, add `-d`; use `docker compose -f infrastructure/docker/compose.yml logs -f api web` to follow app logs.
 
 To recreate only the app dependency volumes after changing package dependencies, use `docker compose -f infrastructure/docker/compose.yml down -v` before starting again. This removes Docker volumes; it does not reset or alter Neon data. Never run database reset commands against production.
 
