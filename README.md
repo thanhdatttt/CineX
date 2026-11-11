@@ -43,7 +43,7 @@ Create the API environment file from the placeholder template and replace `DATAB
 cp apps/api/.env.example apps/api/.env
 ```
 
-The example contains placeholders only. Real `.env` files are Git-ignored. Keep development, test, and production connection strings in separate secret/configuration sources and explicitly select the appropriate isolated target; never point tests or `migrate dev` at production.
+The example contains placeholders only. Copy it to `apps/api/.env` and replace the placeholder values. The API loads this file automatically when started from `apps/api` (including the repository scripts that use `--prefix apps/api`). Values already supplied by the process environment take precedence over `.env`. Real `.env` files are Git-ignored. Keep development, test, and production connection strings in separate secret/configuration sources and explicitly select the appropriate isolated target; never point tests or `migrate dev` at production.
 
 | Variable | Default | Purpose |
 |---|---:|---|
