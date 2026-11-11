@@ -1,10 +1,411 @@
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
-// Add CineX domain models here as their implementation tasks begin.
+enum UserRole {
+  CUSTOMER
+  STAFF
+  ADMIN
+}
+
+enum RecordStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum PublicationStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum SeatType {
+  STANDARD
+  VIP
+  COUPLE
+}
+
+enum ShowtimeStatus {
+  SCHEDULED
+  CANCELLED
+  COMPLETED
+}
+
+enum InventoryStatus {
+  AVAILABLE
+  HELD
+  BOOKED
+}
+
+enum ReservationStatus {
+  ACTIVE
+  PAYMENT_PENDING
+  CONFIRMED
+  EXPIRED
+  CANCELLED
+  FAILED
+}
+
+enum BookingStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  REQUIRES_RECONCILIATION
+}
+
+enum WebhookProcessingStatus {
+  RECEIVED
+  PROCESSED
+  REJECTED
+}
+
+enum DiscountType {
+  FIXED_AMOUNT
+  PERCENTAGE
+}
+
+enum TicketStatus {
+  VALID
+  ADMITTED
+  VOID
+}
+
+enum IdempotencyStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id                String        @id @default(uuid()) @db.Uuid
+  email             String        @unique(map: "users_email_key") @db.VarChar(320)
+  normalizedEmail   String        @unique(map: "users_normalized_email_key") @map("normalized_email") @db.VarChar(320)
+  passwordHash      String        @map("password_hash") @db.VarChar(255)
+  role              UserRole      @default(CUSTOMER)
+  status            RecordStatus  @default(ACTIVE)
+  reservations      Reservation[]
+  bookings          Booking[]
+  voucherRedemptions VoucherRedemption[]
+  idempotencyKeys   IdempotencyKey[]
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("users")
+}
+
+model Movie {
+  id            String             @id @default(uuid()) @db.Uuid
+  title         String             @db.VarChar(200)
+  synopsis      String?            @db.Text
+  durationMins  Int                @map("duration_mins")
+  ageRating     String?            @map("age_rating") @db.VarChar(20)
+  genres        String[]           @default([])
+  trailerUrl    String?            @map("trailer_url") @db.VarChar(2048)
+  releaseDate   DateTime?          @map("release_date") @db.Date
+  status        PublicationStatus  @default(DRAFT)
+  showtimes     Showtime[]
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([status, title])
+  @@map("movies")
+}
+
+model Cinema {
+  id        String       @id @default(uuid()) @db.Uuid
+  name      String       @db.VarChar(200)
+  address   String       @db.VarChar(500)
+  timezone  String       @db.VarChar(100)
+  status    RecordStatus @default(ACTIVE)
+  rooms     CinemaRoom[]
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([status, name])
+  @@map("cinemas")
+}
+
+model CinemaRoom {
+  id        String       @id @default(uuid()) @db.Uuid
+  cinemaId  String       @map("cinema_id") @db.Uuid
+  name      String       @db.VarChar(100)
+  status    RecordStatus @default(ACTIVE)
+  cinema    Cinema       @relation(fields: [cinemaId], references: [id], onDelete: Restrict)
+  seats     Seat[]
+  showtimes Showtime[]
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([cinemaId, name])
+  @@index([cinemaId, status])
+  @@map("cinema_rooms")
+}
+
+model Seat {
+  id          String    @id @default(uuid()) @db.Uuid
+  roomId      String    @map("room_id") @db.Uuid
+  rowLabel    String    @map("row_label") @db.VarChar(10)
+  seatNumber  Int       @map("seat_number")
+  seatType    SeatType  @default(STANDARD) @map("seat_type")
+  isEnabled   Boolean   @default(true) @map("is_enabled")
+  room        CinemaRoom @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  showtimeSeats ShowtimeSeat[]
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([roomId, rowLabel, seatNumber])
+  @@index([roomId, isEnabled])
+  @@map("seats")
+}
+
+model Showtime {
+  id                String          @id @default(uuid()) @db.Uuid
+  movieId           String          @map("movie_id") @db.Uuid
+  roomId            String          @map("room_id") @db.Uuid
+  startsAt          DateTime        @map("starts_at") @db.Timestamptz(3)
+  endsAt            DateTime        @map("ends_at") @db.Timestamptz(3)
+  status            ShowtimeStatus  @default(SCHEDULED)
+  movie             Movie           @relation(fields: [movieId], references: [id], onDelete: Restrict)
+  room              CinemaRoom      @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  seats             ShowtimeSeat[]
+  reservations      Reservation[]
+  bookings          Booking[]
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([roomId, startsAt, endsAt])
+  @@index([startsAt, status])
+  @@map("showtimes")
+}
+
+model ShowtimeSeat {
+  id                String          @id @default(uuid()) @db.Uuid
+  showtimeId        String          @map("showtime_id") @db.Uuid
+  seatId            String          @map("seat_id") @db.Uuid
+  status            InventoryStatus @default(AVAILABLE)
+  version           Int             @default(0)
+  reservationId     String?         @map("reservation_id") @db.Uuid
+  bookingId         String?         @map("booking_id") @db.Uuid
+  priceMinor        Int             @map("price_minor")
+  currency          String          @default("VND") @db.Char(3)
+  showtime          Showtime        @relation(fields: [showtimeId], references: [id], onDelete: Restrict)
+  seat              Seat            @relation(fields: [seatId], references: [id], onDelete: Restrict)
+  reservation       Reservation?    @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+  booking           Booking?        @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  reservationItems  ReservationItem[]
+  bookingItems      BookingItem[]
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([showtimeId, seatId])
+  @@index([showtimeId, status])
+  @@index([reservationId])
+  @@index([bookingId])
+  @@map("showtime_seats")
+}
+
+model Reservation {
+  id          String            @id @default(uuid()) @db.Uuid
+  userId      String            @map("user_id") @db.Uuid
+  showtimeId  String            @map("showtime_id") @db.Uuid
+  status      ReservationStatus @default(ACTIVE)
+  expiresAt   DateTime          @map("expires_at") @db.Timestamptz(3)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  showtime    Showtime          @relation(fields: [showtimeId], references: [id], onDelete: Restrict)
+  items       ReservationItem[]
+  inventory   ShowtimeSeat[]
+  bookings    Booking[]
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([status, expiresAt])
+  @@index([userId, createdAt])
+  @@map("reservations")
+}
+
+model ReservationItem {
+  id              String       @id @default(uuid()) @db.Uuid
+  reservationId   String       @map("reservation_id") @db.Uuid
+  showtimeSeatId  String       @map("showtime_seat_id") @db.Uuid
+  priceMinor      Int          @map("price_minor")
+  currency        String       @default("VND") @db.Char(3)
+  reservation     Reservation  @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+  showtimeSeat    ShowtimeSeat @relation(fields: [showtimeSeatId], references: [id], onDelete: Restrict)
+
+  @@unique([reservationId, showtimeSeatId])
+  @@index([showtimeSeatId])
+  @@map("reservation_items")
+}
+
+model Booking {
+  id            String       @id @default(uuid()) @db.Uuid
+  userId        String       @map("user_id") @db.Uuid
+  reservationId String       @map("reservation_id") @db.Uuid
+  showtimeId    String       @map("showtime_id") @db.Uuid
+  status        BookingStatus @default(PENDING_PAYMENT)
+  totalMinor    Int          @map("total_minor")
+  currency      String       @default("VND") @db.Char(3)
+  user          User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  reservation   Reservation  @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+  showtime      Showtime    @relation(fields: [showtimeId], references: [id], onDelete: Restrict)
+  items         BookingItem[]
+  inventory     ShowtimeSeat[]
+  payments      Payment[]
+  voucherRedemption VoucherRedemption?
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@unique([reservationId])
+  @@map("bookings")
+}
+
+model BookingItem {
+  id              String       @id @default(uuid()) @db.Uuid
+  bookingId       String       @map("booking_id") @db.Uuid
+  showtimeSeatId  String       @map("showtime_seat_id") @db.Uuid
+  priceMinor      Int          @map("price_minor")
+  currency        String       @default("VND") @db.Char(3)
+  booking         Booking      @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  showtimeSeat    ShowtimeSeat @relation(fields: [showtimeSeatId], references: [id], onDelete: Restrict)
+  ticket          Ticket?
+
+  @@unique([bookingId, showtimeSeatId])
+  @@index([showtimeSeatId])
+  @@map("booking_items")
+}
+
+model Voucher {
+  id             String       @id @default(uuid()) @db.Uuid
+  code           String       @unique @db.VarChar(64)
+  discountType   DiscountType @map("discount_type")
+  discountValue  Int          @map("discount_value")
+  maxDiscountMinor Int?       @map("max_discount_minor")
+  minimumSpendMinor Int       @default(0) @map("minimum_spend_minor")
+  usageLimit     Int?         @map("usage_limit")
+  usageCount     Int          @default(0) @map("usage_count")
+  startsAt       DateTime     @map("starts_at") @db.Timestamptz(3)
+  endsAt         DateTime     @map("ends_at") @db.Timestamptz(3)
+  isActive       Boolean      @default(true) @map("is_active")
+  redemptions    VoucherRedemption[]
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([isActive, startsAt, endsAt])
+  @@map("vouchers")
+}
+
+model VoucherRedemption {
+  id          String   @id @default(uuid()) @db.Uuid
+  voucherId   String   @map("voucher_id") @db.Uuid
+  bookingId   String   @map("booking_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  amountMinor Int      @map("amount_minor")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  voucher     Voucher  @relation(fields: [voucherId], references: [id], onDelete: Restrict)
+  booking     Booking  @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([voucherId, bookingId])
+  @@unique([bookingId])
+  @@index([userId, voucherId])
+  @@map("voucher_redemptions")
+}
+
+model Payment {
+  id                  String        @id @default(uuid()) @db.Uuid
+  bookingId           String        @map("booking_id") @db.Uuid
+  provider            String        @db.VarChar(50)
+  providerReference   String?       @map("provider_reference") @db.VarChar(255)
+  amountMinor         Int           @map("amount_minor")
+  currency            String        @default("VND") @db.Char(3)
+  status              PaymentStatus @default(PENDING)
+  idempotencyReference String?      @unique @map("idempotency_reference") @db.VarChar(255)
+  booking             Booking       @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  webhooks            PaymentWebhook[]
+  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([bookingId])
+  @@index([provider, providerReference])
+  @@map("payments")
+}
+
+model PaymentWebhook {
+  id                   String                  @id @default(uuid()) @db.Uuid
+  provider             String                  @db.VarChar(50)
+  providerEventId      String                  @unique @map("provider_event_id") @db.VarChar(255)
+  paymentId            String?                 @map("payment_id") @db.Uuid
+  signatureValid       Boolean                 @map("signature_valid")
+  status               WebhookProcessingStatus @default(RECEIVED)
+  payload              Json
+  receivedAt           DateTime                @default(now()) @map("received_at") @db.Timestamptz(3)
+  processedAt          DateTime?               @map("processed_at") @db.Timestamptz(3)
+  payment              Payment?                @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+
+  @@index([status, receivedAt])
+  @@index([paymentId])
+  @@map("payment_webhooks")
+}
+
+model Ticket {
+  id             String       @id @default(uuid()) @db.Uuid
+  bookingItemId  String       @unique @map("booking_item_id") @db.Uuid
+  code           String       @unique @db.VarChar(128)
+  status         TicketStatus @default(VALID)
+  admittedAt     DateTime?    @map("admitted_at") @db.Timestamptz(3)
+  validatedById  String?      @map("validated_by_id") @db.Uuid
+  bookingItem    BookingItem  @relation(fields: [bookingItemId], references: [id], onDelete: Restrict)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@map("tickets")
+}
+
+model IdempotencyKey {
+  id              String            @id @default(uuid()) @db.Uuid
+  principal       String            @map("principal") @db.VarChar(255)
+  userId          String?           @map("user_id") @db.Uuid
+  operation       String            @db.VarChar(100)
+  key             String            @db.VarChar(255)
+  requestHash     String            @map("request_hash") @db.VarChar(128)
+  status          IdempotencyStatus @default(PROCESSING)
+  response        Json?
+  resourceId      String?           @map("resource_id") @db.VarChar(255)
+  expiresAt       DateTime?         @map("expires_at") @db.Timestamptz(3)
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  user            User?             @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([principal, operation, key])
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}
+
+model OutboxEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  aggregate   String    @db.VarChar(100)
+  aggregateId String    @map("aggregate_id") @db.Uuid
+  eventType   String    @map("event_type") @db.VarChar(150)
+  payload     Json
+  publishedAt DateTime? @map("published_at") @db.Timestamptz(3)
+  attempts    Int       @default(0)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([publishedAt, createdAt])
+  @@index([aggregate, aggregateId])
+  @@map("outbox_events")
+}

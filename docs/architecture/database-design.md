@@ -4,6 +4,10 @@ Neon-hosted PostgreSQL is the database for all environments and the authority fo
 
 ## Entities and ownership
 
+The initial PostgreSQL schema and migration are in `apps/api/prisma/`. All IDs are UUIDs, all instants use `TIMESTAMPTZ` (UTC), and money uses integer minor units with an explicit three-character currency. `users.normalized_email` stores `lower(trim(email))`; its unique constraint and migration check make email normalization an enforced invariant. Physical `seats` contain only reusable layout data. Availability and ownership live on `showtime_seats`, uniquely keyed by `(showtime_id, seat_id)`.
+
+Historical rows use `ON DELETE RESTRICT`: movies and rooms referenced by showtimes, seats referenced by inventory, inventory referenced by reservation/booking lines, and booking/payment/ticket records cannot be removed through cascading deletes. Price is captured on showtime inventory and copied to reservation and booking line snapshots. Change a room layout by creating a new room when showtime inventory already exists (ADR-007).
+
 | Group | Records and key relationships |
 |---|---|
 | Identity | `User(id, normalized_email, password_hash, role, status)`; role is customer/staff/admin. |

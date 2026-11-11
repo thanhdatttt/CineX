@@ -37,13 +37,15 @@ The API listens on `http://localhost:3000` and the client on `http://localhost:5
 
 Create separate, isolated Neon databases or branches for development, automated tests, and production. Do not share production credentials with local development, CI, seeds, or destructive tests. Use `apps/api/.env.example` as the single template. For a test command that needs PostgreSQL, supply the isolated test target's connection string as `DATABASE_URL` for that command; keep test credentials in a separate ignored local env file or CI secret, and keep production credentials in deployment secret storage.
 
-Create the API environment file from the placeholder template and replace `DATABASE_URL` with the connection string for the development target:
+Create the API environment file from the placeholder template and replace `DATABASE_URL` with the **direct (unpooled)** connection string for the development target:
 
 ```sh
 cp apps/api/.env.example apps/api/.env
 ```
 
 The example contains placeholders only. Copy it to `apps/api/.env` and replace the placeholder values. The API loads this file automatically when started from `apps/api` (including the repository scripts that use `--prefix apps/api`). Values already supplied by the process environment take precedence over `.env`. Real `.env` files are Git-ignored. Keep development, test, and production connection strings in separate secret/configuration sources and explicitly select the appropriate isolated target; never point tests or `migrate dev` at production.
+
+In Neon Console, open the database branch and choose **Connect**. This repository currently uses one `DATABASE_URL` for both Prisma CLI migrations and API runtime, so copy the direct connection string (hostname does not contain `-pooler`) and keep `sslmode=require`. Do not use a pooled URL for migrations. The API runs in Docker but PostgreSQL is hosted by Neon; Compose does not create a local PostgreSQL server. Keep the URL private and out of commits, screenshots, and logs.
 
 | Variable | Default | Purpose |
 |---|---:|---|
@@ -62,13 +64,26 @@ npm run db:generate --prefix apps/api
 npm run db:validate --prefix apps/api
 ```
 
-Once domain models exist, create a development migration only against the isolated development database:
+The API uses Prisma ORM 7. `apps/api/prisma.config.ts` supplies the migration connection URL, the generated client lives under `apps/api/src/generated/prisma`, and the API connects through Prisma's PostgreSQL driver adapter.
+
+Apply the committed schema to the isolated development database and seed deterministic catalogue records:
 
 ```sh
-npm run db:migrate:dev --prefix apps/api -- --name init
+npm run db:migrate:dev --prefix apps/api
+npm run db:seed --prefix apps/api
 ```
 
-Deploy committed migrations only to the explicitly selected target with `npm run db:migrate:deploy --prefix apps/api`. Do not use `migrate dev` in production. Prisma Studio is available with `npm run db:studio --prefix apps/api`.
+For a new Neon branch, Prisma creates/updates the schema from the checked-in migrations. `migrate dev` is for development only and may create a migration when the schema changes. Commit the generated migration, then apply committed migrations to a test or production target with:
+
+```sh
+npm run db:migrate:deploy --prefix apps/api
+```
+
+Select the target explicitly by setting that environment's `DATABASE_URL` before running the command. Do not run seeds against production unless the seed data is intended for production. To inspect migration state, run `npm run db:status --prefix apps/api`. Prisma Studio is available with `npm run db:studio --prefix apps/api`.
+
+### Copy an existing PostgreSQL database to Neon
+
+Prisma Migrate transfers the schema, not existing rows. If you already have data in another PostgreSQL database, create the Neon database/branch, take a dump from the source, and restore it into the Neon target using PostgreSQL's `pg_dump` and `pg_restore` tools. Verify the target URL and backup before restoring; a restore can overwrite objects in the destination. For a schema-only setup with no existing data, use the Prisma migration commands above instead.
 
 ## Docker Compose
 
