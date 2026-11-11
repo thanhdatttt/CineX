@@ -1,35 +1,63 @@
 # CineX
-A movie ticket booking system
+
+A movie ticket booking system. The repository currently contains a React/Vite web scaffold, a NestJS API scaffold, architecture decisions, and implementation plans.
 
 ## Project layout
 
-- `frontend/` — React + TypeScript + Tailwind CSS (Vite).
-- `backend/` — NestJS API.
-- `infrastructure/` — Docker Compose for the application and optional Redis.
+- `apps/web/` — React + TypeScript + Tailwind CSS (Vite).
+- `apps/api/` — NestJS API and Prisma CLI/client dependencies.
+- `apps/api/prisma/` — PostgreSQL schema and migrations.
 - `docs/` — requirements, architecture, and implementation planning.
 
-## Local development
+## Configure Prisma and Neon
 
-Requirements: Docker with the Compose plugin. Copy `.env.example` to `.env` and set `DATABASE_URL` to an isolated Neon development database connection string. PostgreSQL is hosted on Neon and is not started by Compose.
+Requirements: Node.js and npm. PostgreSQL is hosted on Neon; this repository does not run a PostgreSQL container.
 
-Start the app containers:
+1. Create or select a **development** Neon PostgreSQL database. Copy its connection string from the Neon dashboard.
+2. From the repository root, create the API's local environment file:
+
+   ```sh
+   test -f apps/api/.env || cp apps/api/.env.example apps/api/.env
+   ```
+
+3. Replace the placeholder `DATABASE_URL` in `apps/api/.env` with the Neon development connection string. Keep `.env` private and do not commit it. `apps/api/.env.example` is only a template.
+4. Install API dependencies and generate the Prisma Client:
+
+   ```sh
+   cd apps/api
+   npm ci
+   npm run db:generate
+   npm run db:validate
+   ```
+
+`db:generate` generates the client and does not contact Neon. `db:validate` checks the schema and configuration locally. The initial schema intentionally has no CineX business models yet.
+
+After domain models have been added to `apps/api/prisma/schema.prisma`, create a development migration with:
 
 ```sh
-docker compose -f infrastructure/compose.yaml up --build
+npm run db:migrate:dev -- --name init
 ```
 
-The frontend is at <http://localhost:5173> and the API at <http://localhost:3000>. To include optional Redis:
+This command connects to the database in `DATABASE_URL` and changes its schema. Use only your isolated development database. For a deployed environment, apply committed migrations with `npm run db:migrate:deploy`; never use `migrate dev` against production. Prisma Studio is available with `npm run db:studio`.
+
+Use separate isolated Neon targets for development, tests, and production. Never run development seeds or destructive tests against production data.
+
+## Run locally with Docker Compose
+
+Requirements: Docker Engine/Desktop with the Compose plugin. First create `apps/api/.env` as described above. From the repository root, start the API and web app:
 
 ```sh
-docker compose -f infrastructure/compose.yaml --profile redis up --build
+docker compose -f infrastructure/docker/compose.yml up --build
 ```
 
-Stop containers with `docker compose -f infrastructure/compose.yaml down`. The frontend scaffold intentionally contains only a startup placeholder; product flows are not implemented yet.
+The web app is at <http://localhost:5173> and the API at <http://localhost:3000>. To also start optional Redis:
 
-For development outside Docker, install dependencies with `npm install` in `frontend/` and `npm ci` in `backend/`; run each with `npm run dev` and `npm run start:dev` respectively.
+```sh
+docker compose -f infrastructure/docker/compose.yml --profile redis up --build
+```
 
-## Database and local services
+Stop the services with `docker compose -f infrastructure/docker/compose.yml down`. The Compose stack does not run PostgreSQL; the API receives `DATABASE_URL` from `apps/api/.env` for Neon. After changing app dependencies, recreate the dependency volumes with `docker compose -f infrastructure/docker/compose.yml down -v` before starting again.
 
-CineX stores PostgreSQL data in Neon. Prisma connects using a Neon connection string supplied through environment configuration (for example, `DATABASE_URL`) and manages the schema and migrations. Do not commit real connection strings or `.env` files; keep `.env.example` limited to safe placeholders.
+The web app is still a Vite starter page and the API currently exposes only its NestJS starter endpoint. Docker Compose provides a local development environment; product flows remain to be implemented.
 
-Docker Compose is for running the backend, frontend, and optionally Redis. It does not run PostgreSQL. Development, test, and production must use separate Neon targets; never run development seeds or destructive tests against production data.
+For development without Docker, install dependencies with `npm ci` in `apps/web/` and `apps/api/`. Start the web app with `npm run dev` from `apps/web/`; start the API with `npm run start:dev` from `apps/api/`.

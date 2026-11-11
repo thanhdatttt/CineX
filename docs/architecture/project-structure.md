@@ -11,26 +11,22 @@ This document describes the intended project structure. It is a target for imple
 │   └── web/                         # React + TypeScript + Tailwind
 ├── packages/
 │   └── contracts/                   # Shared API types only when genuinely useful
-├── prisma/
-│   ├── schema.prisma                # Prisma schema for Neon PostgreSQL
-│   ├── migrations/                  # Versioned schema migrations
-│   └── seed.ts                      # Explicit development seed command
 ├── docs/
 │   ├── architecture/
 │   └── planning/
 ├── infrastructure/
-│   ├── docker/                      # App Dockerfiles/configuration
-│   └── compose.yaml                 # Backend, frontend, optional Redis; no PostgreSQL
+│   └── docker/                       # Dockerfiles and Compose; apps + optional Redis, no PostgreSQL
 ├── scripts/                         # Setup, migration and verification helpers
 ├── tests/
 │   ├── integration/                 # Isolated Neon PostgreSQL integration tests
 │   └── load/                        # k6 scenarios
-├── .env.example                     # Safe placeholders only
 ├── .gitignore                       # Ignore real env files and local artifacts
 └── README.md
 ```
 
 Use the package manager/workspace selected during bootstrap. Avoid adding a shared package until both apps need a stable shared contract or utility; do not use it to bypass API boundaries.
+
+The Prisma schema, migrations, and `.env.example` live in `apps/api/`, alongside the package that owns the Prisma CLI and client dependencies.
 
 ## Backend layout
 
@@ -95,8 +91,8 @@ The frontend displays snapshots and mutation results. It never calculates author
 
 ## Data, configuration, and local services
 
-- Neon-hosted PostgreSQL is the database. Prisma schema and migrations live under `prisma/`; use separate Neon targets for development, test, and production.
-- Supply the Neon connection string, for example `DATABASE_URL`, through environment/secret configuration. Never commit a real connection string or `.env` file. `.env.example` contains placeholders, and `.gitignore` excludes real env files.
+- Neon-hosted PostgreSQL is the database. Prisma schema and migrations live under `apps/api/prisma/`; use separate Neon targets for development, test, and production.
+- Supply the Neon connection string, for example `DATABASE_URL`, through environment/secret configuration. Never commit a real connection string or `.env` file. `apps/api/.env.example` contains placeholders, and `.gitignore` excludes real env files.
 - Docker Compose runs backend/frontend and may run Redis. It must not define a PostgreSQL service.
 - Seed and destructive test commands must require an explicitly selected non-production Neon target. CI integration tests use isolated Neon test data and must not receive production credentials.
 - Redis is optional for local startup unless the feature under development requires it. PostgreSQL remains the authority when Redis is absent or unavailable.
