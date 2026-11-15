@@ -50,6 +50,9 @@ In Neon Console, open the database branch and choose **Connect**. This repositor
 | Variable | Default | Purpose |
 |---|---:|---|
 | `DATABASE_URL` | required | Neon PostgreSQL connection URL (`postgres://` or `postgresql://`). |
+| `JWT_SECRET` | required | Unique random secret of at least 32 bytes; generate with `openssl rand -base64 48`. |
+| `JWT_ACCESS_TOKEN_TTL_SECONDS` | `600` | JWT access-token lifetime (10 minutes); accepted range is 1–86400 seconds. |
+| `JWT_REFRESH_TOKEN_TTL_DAYS` | `7` | Rotating refresh-token lifetime (7 days); accepted range is 1–90 days. |
 | `PORT` | `3000` | API listen port. |
 | `TZ` | `UTC` | Timestamp handling; persisted timestamps use UTC and are converted at API/UI boundaries. |
 | `RESERVATION_HOLD_MINUTES` | `5` | Active seat-hold duration. |
