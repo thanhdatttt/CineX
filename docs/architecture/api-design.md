@@ -12,9 +12,21 @@ Use versioned REST conventions if the existing app has none, DTO validation at e
 | Booking/payment | `POST /bookings`, `GET /bookings`, `GET /bookings/:id`, `POST /bookings/:id/payment`, `POST /bookings/:id/cancel` | Customer; owner checked |
 | Tickets | `GET /tickets/:id`, `POST /tickets/validate` | Ticket owner or authorized staff scoped to cinema |
 | Admin | CRUD/publish/archive movies; manage cinemas, rooms/layouts, showtimes/pricing, vouchers | Admin-only |
+| Optional TMDB support | `GET /admin/tmdb/movies?query=...`, `GET /admin/tmdb/movies/:tmdbId`, `POST /admin/movies/import-tmdb` | Admin-only; backend calls TMDB; import persists a CineX-owned movie |
 | Payment webhook | `POST /webhooks/mock-payment` | Provider signature; payload and rate limits |
 
+### Implemented catalogue operations (M1-T03)
+
+- `GET /movies?page=1&limit=20&filter=nowShowing|comingSoon` lists CineX-persisted published movies. `nowShowing` requires a scheduled showtime whose end is in the future; `comingSoon` selects movies with a date-only `releaseDate` after the current UTC date. Without a filter, movies with or without a release date are included. Results sort by `releaseDate`, title, then ID. `GET /movies/:id` returns only published records.
+- `GET /cinemas?page=1&limit=20` and `GET /cinemas/:id` return active CineX cinemas only; listings sort by name then ID.
+- `POST /admin/movies`, `PATCH /admin/movies/:id`, and `POST /admin/movies/:id/{publish,unpublish,archive}` manage locally owned movie records. New movies start as drafts.
+- `POST /admin/cinemas`, `PATCH /admin/cinemas/:id`, and `POST /admin/cinemas/:id/{activate,deactivate,archive}` manage cinemas. Public responses omit inactive and archived cinemas.
+- Catalogue lists return `{ data, meta: { page, limit, total, totalPages } }`; detail and write responses return `{ data }`. DTO validation rejects unknown fields. Invalid UUIDs return 400, missing or non-public records return 404, and authenticated non-admin writes return 403.
+- TMDB support is optional and is not required for M1-T03. Customer catalogue reads never call TMDB; manual create/edit and public reads use CineX persistence.
+
 Admin/staff operational reads and writes must also enforce scope on the server. Never rely on frontend route visibility.
+
+TMDB routes are optional and illustrative route names; document the final paths in OpenAPI if implemented. Keep TMDB credentials and outbound calls in the backend integration adapter. Search/detail results are candidate data only: importing requires an explicit admin action and creates/updates a persisted CineX movie record. Public `GET /movies` and `GET /movies/:id` read CineX persistence only and must not proxy to TMDB. If TMDB is absent or down, manual admin catalogue operations and public CineX reads remain available.
 
 ## Request and response rules
 

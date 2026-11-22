@@ -132,10 +132,16 @@ TMDB and VietQR may be integrated as supporting utilities only. They are
 not standalone CineX product features, are not required for MVP delivery,
 and must not become sources of truth for CineX business state.
 
-- **TMDB:** May help staff search/import movie metadata or artwork into
-  CineX. Movie records used by CineX remain stored and managed in CineX;
-  cinema schedules, ticket prices, and publication status are always
-  controlled by CineX. Respect TMDB attribution and licensing terms.
+- **TMDB:** May help admins search for and review movie metadata or
+  artwork, then explicitly import the selected data into a CineX-owned
+  movie record. TMDB is called only by the CineX backend for this
+  admin-assisted workflow; customer browse/detail requests read CineX's
+  database through CineX APIs and never fetch movie data from TMDB.
+  Imported records remain editable and managed in CineX; cinema
+  schedules, ticket prices, and publication status are always controlled
+  by CineX. Manual catalogue management must continue to work when TMDB
+  is not configured or unavailable. Respect TMDB attribution and
+  licensing terms.
 - **VietQR:** May help generate/display a bank-transfer QR for a payment
   attempt. Generating or scanning a QR, a client redirect, or a client
   success message does not prove payment. Only a verified server-side
@@ -527,6 +533,14 @@ Passwords never appear in API responses or logs.
 -   Validate required fields and valid duration/status.
 -   Public catalogue endpoints expose only published/appropriate
     records.
+-   If the optional TMDB integration is enabled, admins can search TMDB
+    and review a candidate before explicitly importing its supported
+    metadata/artwork into CineX. TMDB credentials stay on the backend.
+-   Public customer catalogue and movie-detail requests use CineX's
+    persisted records only; they do not proxy to or depend on TMDB.
+-   CineX remains authoritative after import: admins can edit imported
+    values, and schedules, prices, and publication state are managed
+    locally.
 
 **Acceptance criteria** - Filtering/pagination is deterministic. -
 Invalid movie references return a documented not-found response. -

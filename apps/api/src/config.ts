@@ -3,6 +3,9 @@ export interface AppConfig {
   port: number;
   reservationHoldMinutes: number;
   paymentReconciliationTimeoutMinutes: number;
+  jwtSecret: string;
+  jwtAccessTokenTtlSeconds: number;
+  jwtRefreshTokenTtlDays: number;
 }
 
 function positiveInteger(
@@ -41,6 +44,31 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     );
   }
 
+  const jwtSecret = env.JWT_SECRET?.trim();
+  if (
+    !jwtSecret ||
+    Buffer.byteLength(jwtSecret, 'utf8') < 32 ||
+    /^(replace|change|your[-_ ]secret|secret)/i.test(jwtSecret)
+  ) {
+    throw new Error('JWT_SECRET must contain at least 32 bytes.');
+  }
+  const jwtAccessTokenTtlSeconds = positiveInteger(
+    'JWT_ACCESS_TOKEN_TTL_SECONDS',
+    env.JWT_ACCESS_TOKEN_TTL_SECONDS,
+    600,
+  );
+  if (jwtAccessTokenTtlSeconds > 86_400) {
+    throw new Error('JWT_ACCESS_TOKEN_TTL_SECONDS must not exceed 86400.');
+  }
+  const jwtRefreshTokenTtlDays = positiveInteger(
+    'JWT_REFRESH_TOKEN_TTL_DAYS',
+    env.JWT_REFRESH_TOKEN_TTL_DAYS,
+    7,
+  );
+  if (jwtRefreshTokenTtlDays > 90) {
+    throw new Error('JWT_REFRESH_TOKEN_TTL_DAYS must not exceed 90.');
+  }
+
   return {
     databaseUrl,
     port: positiveInteger('PORT', env.PORT, 3000),
@@ -54,5 +82,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       env.PAYMENT_RECONCILIATION_TIMEOUT_MINUTES,
       30,
     ),
+    jwtSecret,
+    jwtAccessTokenTtlSeconds,
+    jwtRefreshTokenTtlDays,
   };
 }
