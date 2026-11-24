@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  ParseIntPipe,
   ParseUUIDPipe,
   Patch,
   Post,
@@ -13,6 +14,10 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { PublicationStatus, UserRole } from '../generated/prisma/enums';
+import {
+  ImportTmdbMovieDto,
+  SearchTmdbMoviesQueryDto,
+} from '../integrations/tmdb/tmdb.dto';
 import {
   CreateMovieDto,
   ListMoviesQueryDto,
@@ -32,6 +37,27 @@ export class MoviesController {
   @Get('movies/:id')
   get(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.movies.getPublic(id);
+  }
+
+  @Get('admin/tmdb/movies')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  searchTmdb(@Query() query: SearchTmdbMoviesQueryDto) {
+    return this.movies.searchTmdb(query);
+  }
+
+  @Get('admin/tmdb/movies/:tmdbId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  getTmdbCandidate(@Param('tmdbId', ParseIntPipe) tmdbId: number) {
+    return this.movies.getTmdbCandidate(tmdbId);
+  }
+
+  @Post('admin/movies/import-tmdb')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  importTmdb(@Body() input: ImportTmdbMovieDto) {
+    return this.movies.importTmdbMovie(input);
   }
 
   @Post('admin/movies')

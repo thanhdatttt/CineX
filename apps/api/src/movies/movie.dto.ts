@@ -55,6 +55,16 @@ export class CreateMovieDto {
   trailerUrl?: string | null;
 
   @IsOptional()
+  @IsUrl({ require_protocol: true })
+  @MaxLength(2048)
+  posterUrl?: string | null;
+
+  @IsOptional()
+  @IsUrl({ require_protocol: true })
+  @MaxLength(2048)
+  backdropUrl?: string | null;
+
+  @IsOptional()
   @IsString()
   @MinLength(10)
   @MaxLength(10)
@@ -99,6 +109,16 @@ export class UpdateMovieDto {
   @IsUrl({ require_protocol: true })
   @MaxLength(2048)
   trailerUrl?: string | null;
+
+  @IsOptional()
+  @IsUrl({ require_protocol: true })
+  @MaxLength(2048)
+  posterUrl?: string | null;
+
+  @IsOptional()
+  @IsUrl({ require_protocol: true })
+  @MaxLength(2048)
+  backdropUrl?: string | null;
 
   @IsOptional()
   @IsString()

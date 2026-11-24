@@ -12,11 +12,16 @@ describe('MoviesService', () => {
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      upsert: jest.fn(),
       count: jest.fn(),
     },
     $transaction: jest.fn(),
   };
-  const service = new MoviesService(prisma as unknown as PrismaService);
+  const tmdb = { searchMovies: jest.fn(), getMovie: jest.fn() };
+  const service = new MoviesService(
+    prisma as unknown as PrismaService,
+    tmdb as never,
+  );
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -25,6 +30,19 @@ describe('MoviesService', () => {
     );
     prisma.movie.findMany.mockResolvedValue([]);
     prisma.movie.count.mockResolvedValue(0);
+    tmdb.getMovie.mockResolvedValue({
+      tmdbId: 123,
+      title: 'TMDB Movie',
+      synopsis: 'Synopsis',
+      durationMins: 110,
+      ageRating: '13+',
+      genres: ['Drama'],
+      trailerUrl: 'https://www.youtube.com/watch?v=abc',
+      releaseDate: '2026-01-02',
+      posterUrl: 'https://image.tmdb.org/t/p/w500/poster.jpg',
+      backdropUrl: null,
+      sourceUrl: 'https://www.themoviedb.org/movie/123',
+    });
   });
 
   it('only lists published movies with stable order and bounded pagination', async () => {
@@ -106,5 +124,49 @@ describe('MoviesService', () => {
     await expect(
       service.update('missing-id', { title: 'New title' }),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('imports TMDB metadata into an unpublished CineX-owned movie', async () => {
+    prisma.movie.upsert.mockResolvedValue({ id: 'new-movie', tmdbId: 123 });
+    await service.importTmdbMovie({ tmdbId: 123 });
+    expect(prisma.movie.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { tmdbId: 123 },
+        create: expect.objectContaining({
+          tmdbId: 123,
+          title: 'TMDB Movie',
+          durationMins: 110,
+          status: PublicationStatus.DRAFT,
+        }),
+        update: expect.objectContaining({
+          title: 'TMDB Movie',
+          posterUrl: expect.any(String),
+        }),
+      }),
+    );
+  });
+
+  it('syncs an explicit CineX movie without changing its publication state', async () => {
+    prisma.movie.findUnique.mockResolvedValue({ id: 'movie-id', tmdbId: 123 });
+    prisma.movie.update.mockResolvedValue({ id: 'movie-id', tmdbId: 123 });
+    await service.importTmdbMovie({ tmdbId: 123, movieId: 'movie-id' });
+    expect(prisma.movie.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'movie-id' },
+        data: expect.objectContaining({ title: 'TMDB Movie', tmdbId: 123 }),
+        select: expect.objectContaining({ status: true }),
+      }),
+    );
+    expect(prisma.movie.update.mock.calls[0][0].data).not.toHaveProperty(
+      'status',
+    );
+  });
+
+  it('rejects relinking an already linked CineX movie to a different TMDB record', async () => {
+    prisma.movie.findUnique.mockResolvedValue({ id: 'movie-id', tmdbId: 456 });
+    await expect(
+      service.importTmdbMovie({ tmdbId: 123, movieId: 'movie-id' }),
+    ).rejects.toThrow('already linked to a different TMDB record');
+    expect(prisma.movie.update).not.toHaveBeenCalled();
   });
 });
