@@ -8,6 +8,6 @@
 
 **Files/modules affected.** React client admin/staff routes and API client.
 
-**Implementation steps.** Add admin movie/cinema/room/showtime/pricing workflows; communicate immutable-layout conflicts; add staff scan/validation result flow; show clear authorization and validation errors.
+**Implementation steps.** Add admin movie/cinema/room/showtime/pricing workflows; validate form values before requests and display field errors; communicate immutable-layout conflicts; add staff scan/validation result flow; show clear authorization and API validation errors.
 
-**Acceptance criteria.** UI exposes only supported operations; backend remains the authority; layout conflict is actionable; validation clearly distinguishes admitted, already used, invalid and out-of-scope tickets.
+**Acceptance criteria.** Invalid values are blocked before request submission; UI exposes only supported operations; backend remains the authority and independently validates requests; layout conflict is actionable; validation clearly distinguishes admitted, already used, invalid and out-of-scope tickets.

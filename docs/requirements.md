@@ -939,6 +939,26 @@ definitions. - Ticket validation and operational views.
 -   Document authentication and idempotency headers.
 -   Add OpenAPI/Swagger documentation if compatible with the repository.
 
+#### Request validation boundary
+
+- The frontend validates every user-entered or user-selected value before
+  sending a request. Invalid form/query values must block submission and
+  show field-level errors; client validation is for usability and does not
+  replace server validation.
+- The backend validates and normalizes every incoming request at the HTTP
+  boundary before invoking an application service or starting a business
+  workflow. Cover request bodies, path parameters, query parameters, and
+  relevant headers (including idempotency keys). Reject unknown fields
+  and malformed values with the standard `400 VALIDATION_ERROR` response.
+- DTO/schema validation must check shape, type, format, required fields,
+  lengths, ranges, and enum membership. After boundary validation,
+  application/domain services still enforce business rules, authorization,
+  current database state, and transactional invariants; boundary validation
+  must not be treated as proof that an operation is allowed.
+- Tests must demonstrate that invalid client data is not sent by frontend
+  submit flows where practical, and invalid API requests are rejected
+  before the corresponding business service is invoked.
+
 Suggested error codes include: - `UNAUTHENTICATED` - `FORBIDDEN` -
 `RESOURCE_NOT_FOUND` - `VALIDATION_ERROR` - `SEAT_UNAVAILABLE` -
 `RESERVATION_EXPIRED` - `RESERVATION_NOT_OWNED` -
@@ -1169,6 +1189,12 @@ booking paid based only on a frontend redirect. - Handle expired
 reservation and unavailable-seat responses with a recoverable user
 flow. - Do not store secrets in browser storage. - Display currency and
 time zone consistently.
+
+Validate form and selected values in the frontend before sending each
+request. Show actionable field errors and do not submit invalid data.
+Repeat all relevant structural validation and normalization in the API
+before entering business services; frontend validation is never a trust
+boundary and cannot replace backend checks.
 
 ------------------------------------------------------------------------
 

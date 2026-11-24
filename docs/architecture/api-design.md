@@ -1,6 +1,6 @@
 # API Design
 
-Use versioned REST conventions if the existing app has none, DTO validation at every write boundary, and application services for domain rules. Publish an OpenAPI/Swagger contract with auth, idempotency, errors, and examples. Exact route naming may follow repository conventions; the operations below are required.
+Use versioned REST conventions if the existing app has none, DTO validation at every write boundary, and application services for domain rules. Follow [ADR-010](decisions/ADR-010-request-validation-boundaries.md): validate at the frontend before sending and validate again at the API boundary before invoking business services. Publish an OpenAPI/Swagger contract with auth, idempotency, errors, and examples. Exact route naming may follow repository conventions; the operations below are required.
 
 ## Endpoints and access
 
@@ -31,6 +31,7 @@ Keep TMDB credentials and outbound calls in the backend integration adapter. Sea
 
 ## Request and response rules
 
+- Validate and normalize every request at the API boundary before invoking application services: body, path, query, and relevant headers. Use DTO/schema validation, reject unknown fields and malformed types/formats/ranges/enums, and return `400 VALIDATION_ERROR` consistently. Service/domain logic must still check authorization, business rules, current state, and transactional invariants.
 - Mutating requests use validated DTOs, reject unknown/invalid values, and return a consistent envelope. Lists have explicit pagination, stable ordering, and documented filters.
 - Reservation body identifies showtime and seat IDs only; reject duplicate IDs. Server returns reservation ID/status, held seat IDs and authoritative price summary, plus `expiresAt`. A conflict holds none of the requested seats.
 - Booking/payment inputs carry reservation or booking reference, voucher code where applicable, and mock scenario selection only where the development simulator exposes it. Client-submitted price, discount, booking-paid status, and redirect results are never trusted.

@@ -1,6 +1,6 @@
 # Security Design
 
-Apply security in NestJS guards/interceptors and domain services. Every protected endpoint checks both role and resource scope; UI hiding is not authorization.
+Apply security in NestJS guards/interceptors and domain services. Every protected endpoint checks both role and resource scope; UI hiding is not authorization. Request validation follows [ADR-010](decisions/ADR-010-request-validation-boundaries.md): the frontend validates before sending for usability, and the API independently validates before business services run.
 
 ## Identity, roles, and ownership
 
@@ -32,7 +32,8 @@ Redis-outage behavior is route-specific: fail sensitive writes/authentication cl
 
 ## Input, secrets, and payment events
 
-- Validate and normalize request data, apply request/body size limits, use parameterized database access, and avoid unsafe SQL interpolation.
+- Validate and normalize request data at the HTTP boundary before calling an application service or entering a business workflow. Cover body, path, query, and relevant headers; reject unknown fields and malformed values with the standard validation error. Apply request/body size limits, use parameterized database access, and avoid unsafe SQL interpolation.
+- Frontend forms validate user input before sending requests and show field errors, but client checks are only usability aids. The API independently validates every request; never rely on frontend validation for security or correctness. Business services also enforce domain rules, authorization, and current database state after structural validation passes.
 - Store secrets only in environment/secret configuration; `.env.example` has placeholders, including a placeholder Neon `DATABASE_URL`. Do not commit actual `.env` files or JWT, Neon database connection string, Redis, or mock-gateway secrets; ensure `.env` is Git-ignored. Fail startup clearly when required values are missing.
 - Verify webhook signatures with constant-time comparison, validate event schema and amount/currency/references, persist and deduplicate receipt before processing, and safely quarantine invalid/mismatched events. Frontend redirects are never payment proof.
 - Return generic safe errors. Never expose stack traces, SQL, secrets, provider credentials, password/token values, or sensitive payment payload fields in logs or responses.
