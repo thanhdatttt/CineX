@@ -31,8 +31,13 @@ Keep TMDB credentials and outbound calls in the backend integration adapter. Sea
 
 ## Request and response rules
 
-- Validate and normalize every request at the API boundary before invoking application services: body, path, query, and relevant headers. Use DTO/schema validation, reject unknown fields and malformed types/formats/ranges/enums, and return `400 VALIDATION_ERROR` consistently. Service/domain logic must still check authorization, business rules, current state, and transactional invariants.
-- Mutating requests use validated DTOs, reject unknown/invalid values, and return a consistent envelope. Lists have explicit pagination, stable ordering, and documented filters.
+[OpenAPI contract for implemented endpoints](openapi.yaml) covers auth, users, catalogue, and optional TMDB.
+
+- The API validates JSON bodies, path parameters, and query parameters with DTOs before invoking business services. Undeclared properties, unexpected query keys, and repeated scalar parameters return `400 VALIDATION_ERROR`. Routes without body fields accept an omitted body or an empty JSON object.
+- Send request bodies as `application/json`. Invalid JSON and non-object bodies return 400, bodies larger than 100 KiB return 413, and unsupported body media types return 415 on routes with body DTOs.
+- Integer fields in JSON require numbers; integer path/query values use decimal digits. UUIDs are normalized to lowercase. A movie PATCH may clear nullable metadata with `null`; movie title, runtime, genres, cinema fields, and optional TMDB movie IDs may be omitted but reject `null`.
+- Protected routes require a single Bearer authorization header. Missing or malformed credentials return 401, and insufficient permissions return 403. Services continue to enforce ownership, business rules, current state and transaction rules.
+- Invalid requests return `{ "error": { "code": "VALIDATION_ERROR", "message": "Request data is invalid.", "requestId": "..." } }`. The same ID is sent in `X-Request-Id`. Error responses omit request values, parser errors, stack traces and database or provider details. A valid TMDB import request can still return `400 TMDB_RUNTIME_REQUIRED` if creating a movie requires runtime metadata that TMDB did not supply.
 - Reservation body identifies showtime and seat IDs only; reject duplicate IDs. Server returns reservation ID/status, held seat IDs and authoritative price summary, plus `expiresAt`. A conflict holds none of the requested seats.
 - Booking/payment inputs carry reservation or booking reference, voucher code where applicable, and mock scenario selection only where the development simulator exposes it. Client-submitted price, discount, booking-paid status, and redirect results are never trusted.
 - Payment initiation returns an attempt/reference and a distinct `PENDING`, `SUCCEEDED`, `FAILED`, or `OUTCOME_UNKNOWN` result. Unknown is recoverable by status/reconciliation and must not be shown as definitive failure.

@@ -5,8 +5,11 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/database/prisma.service';
-import { ValidationPipe } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
+import { configureHttp } from './../src/common/configure-http';
 import { hashPassword } from './../src/auth/password';
+
+const customerId = '63b316d3-b197-44ed-a149-caac26a23cc4';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
@@ -50,7 +53,7 @@ describe('AppController (e2e)', () => {
     user: {
       create: jest.fn(({ data }) => {
         const user = {
-          id: 'customer-1',
+          id: customerId,
           status: 'ACTIVE',
           createdAt: new Date('2026-01-01T00:00:00Z'),
           ...data,
@@ -62,7 +65,7 @@ describe('AppController (e2e)', () => {
           role: user.role,
         };
       }),
-      findUnique: jest.fn(({ where }) => {
+      findUnique: jest.fn(({ where, select }) => {
         if (where.id && where.id !== storedUser?.id) return null;
         if (
           where.normalizedEmail &&
@@ -70,7 +73,13 @@ describe('AppController (e2e)', () => {
         ) {
           return null;
         }
-        return storedUser ?? null;
+        if (!storedUser) return null;
+        if (!select) return storedUser;
+        return Object.fromEntries(
+          Object.keys(select)
+            .filter((key) => select[key])
+            .map((key) => [key, storedUser?.[key]]),
+        );
       }),
     },
   };
@@ -87,14 +96,11 @@ describe('AppController (e2e)', () => {
       .useValue(prismaMock)
       .compile();
 
-    app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-      }),
-    );
+    const server = moduleFixture.createNestApplication<NestExpressApplication>({
+      bodyParser: false,
+    });
+    configureHttp(server);
+    app = server;
     await app.init();
   });
 
@@ -131,7 +137,7 @@ describe('AppController (e2e)', () => {
       .expect(201);
 
     expect(response.body.user).toEqual({
-      id: 'customer-1',
+      id: customerId,
       email: 'alice@example.com',
       role: 'CUSTOMER',
     });
@@ -141,7 +147,7 @@ describe('AppController (e2e)', () => {
 
   it('authenticates requests and returns 403 for forbidden roles', async () => {
     storedUser = {
-      id: 'customer-1',
+      id: customerId,
       email: 'alice@example.com',
       normalizedEmail: 'alice@example.com',
       role: 'CUSTOMER',
@@ -166,19 +172,44 @@ describe('AppController (e2e)', () => {
     await request(app.getHttpServer())
       .get('/users/admin/identity-check')
       .set('Authorization', `Bearer ${login.body.accessToken}`)
-      .expect(403);
+      .expect(403)
+      .expect(({ body }) => expect(body.error.code).toBe('FORBIDDEN'));
+
+    await request(app.getHttpServer())
+      .get(`/users/${customerId.toUpperCase()}`)
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.id).toBe(customerId);
+        expect(body).not.toHaveProperty('passwordHash');
+      });
+
+    await request(app.getHttpServer())
+      .get('/users/6625f95e-8c33-41ac-a6ce-cbe5770baa54')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .expect(403)
+      .expect(({ body }) => expect(body.error.code).toBe('FORBIDDEN'));
+
+    await request(app.getHttpServer())
+      .get('/auth/me')
+      .set({
+        Authorization: [`Bearer ${login.body.accessToken}`, 'Bearer invalid'],
+      })
+      .expect(401)
+      .expect(({ body }) => expect(body.error.code).toBe('UNAUTHENTICATED'));
   });
 
   it('returns 401 for malformed bearer tokens', async () => {
     await request(app.getHttpServer())
       .get('/auth/me')
       .set('Authorization', 'Bearer not-a-jwt')
-      .expect(401);
+      .expect(401)
+      .expect(({ body }) => expect(body.error.code).toBe('UNAUTHENTICATED'));
   });
 
   it('rotates refresh tokens and revokes their family on reuse', async () => {
     storedUser = {
-      id: 'customer-1',
+      id: customerId,
       email: 'alice@example.com',
       normalizedEmail: 'alice@example.com',
       role: 'CUSTOMER',

@@ -1,11 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { PaginationQueryDto } from '../common/request-validation';
 import { RecordStatus } from '../generated/prisma/enums';
 import { PrismaService } from '../database/prisma.service';
-import {
-  CreateCinemaDto,
-  ListCinemasQueryDto,
-  UpdateCinemaDto,
-} from './cinema.dto';
+import { CreateCinemaDto, UpdateCinemaDto } from './cinema.dto';
 
 const cinemaFields = {
   id: true,
@@ -21,7 +18,7 @@ const cinemaFields = {
 export class CinemasService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listPublic(query: ListCinemasQueryDto) {
+  async listPublic(query: PaginationQueryDto) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const where = { status: RecordStatus.ACTIVE };

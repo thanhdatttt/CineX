@@ -3,19 +3,19 @@ import {
   Controller,
   Get,
   Param,
-  ParseIntPipe,
-  ParseUUIDPipe,
   Patch,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { AcceptRequestInput, IdParamsDto } from '../common/request-validation';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { PublicationStatus, UserRole } from '../generated/prisma/enums';
 import {
   ImportTmdbMovieDto,
+  TmdbMovieParamsDto,
   SearchTmdbMoviesQueryDto,
 } from '../integrations/tmdb/tmdb.dto';
 import {
@@ -30,16 +30,18 @@ export class MoviesController {
   constructor(private readonly movies: MoviesService) {}
 
   @Get('movies')
+  @AcceptRequestInput('query')
   list(@Query() query: ListMoviesQueryDto) {
     return this.movies.listPublic(query);
   }
 
   @Get('movies/:id')
-  get(@Param('id', new ParseUUIDPipe()) id: string) {
+  get(@Param() { id }: IdParamsDto) {
     return this.movies.getPublic(id);
   }
 
   @Get('admin/tmdb/movies')
+  @AcceptRequestInput('query')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   searchTmdb(@Query() query: SearchTmdbMoviesQueryDto) {
@@ -49,11 +51,12 @@ export class MoviesController {
   @Get('admin/tmdb/movies/:tmdbId')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  getTmdbCandidate(@Param('tmdbId', ParseIntPipe) tmdbId: number) {
+  getTmdbCandidate(@Param() { tmdbId }: TmdbMovieParamsDto) {
     return this.movies.getTmdbCandidate(tmdbId);
   }
 
   @Post('admin/movies/import-tmdb')
+  @AcceptRequestInput('body')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   importTmdb(@Body() input: ImportTmdbMovieDto) {
@@ -61,6 +64,7 @@ export class MoviesController {
   }
 
   @Post('admin/movies')
+  @AcceptRequestInput('body')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   create(@Body() input: CreateMovieDto) {
@@ -68,33 +72,31 @@ export class MoviesController {
   }
 
   @Patch('admin/movies/:id')
+  @AcceptRequestInput('body')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  update(
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @Body() input: UpdateMovieDto,
-  ) {
+  update(@Param() { id }: IdParamsDto, @Body() input: UpdateMovieDto) {
     return this.movies.update(id, input);
   }
 
   @Post('admin/movies/:id/publish')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  publish(@Param('id', new ParseUUIDPipe()) id: string) {
+  publish(@Param() { id }: IdParamsDto) {
     return this.movies.setStatus(id, PublicationStatus.PUBLISHED);
   }
 
   @Post('admin/movies/:id/unpublish')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  unpublish(@Param('id', new ParseUUIDPipe()) id: string) {
+  unpublish(@Param() { id }: IdParamsDto) {
     return this.movies.setStatus(id, PublicationStatus.DRAFT);
   }
 
   @Post('admin/movies/:id/archive')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  archive(@Param('id', new ParseUUIDPipe()) id: string) {
+  archive(@Param() { id }: IdParamsDto) {
     return this.movies.setStatus(id, PublicationStatus.ARCHIVED);
   }
 }

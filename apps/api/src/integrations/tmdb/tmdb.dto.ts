@@ -1,40 +1,43 @@
-import { Transform, Type } from 'class-transformer';
+import { IsInt, Max, MaxLength, Min, MinLength } from 'class-validator';
 import {
-  IsInt,
-  IsOptional,
-  IsString,
-  IsUUID,
-  Max,
-  MaxLength,
-  Min,
-  MinLength,
-} from 'class-validator';
+  DecimalInteger,
+  IsText,
+  OptionalField,
+  Trim,
+  Uuid,
+} from '../../common/request-validation';
+
+const MAX_TMDB_ID = 2_147_483_647;
 
 export class SearchTmdbMoviesQueryDto {
-  @Transform(({ value }) => trimString(value))
-  @IsString()
+  @Trim()
+  @IsText()
   @MinLength(1)
   @MaxLength(100)
   query!: string;
 
-  @Type(() => Number)
+  @DecimalInteger()
   @IsInt()
   @Min(1)
   @Max(500)
   page = 1;
 }
 
-export class ImportTmdbMovieDto {
-  @Type(() => Number)
+export class TmdbMovieParamsDto {
+  @DecimalInteger()
   @IsInt()
   @Min(1)
+  @Max(MAX_TMDB_ID)
   tmdbId!: number;
-
-  @IsOptional()
-  @IsUUID()
-  movieId?: string;
 }
 
-function trimString(value: unknown): unknown {
-  return typeof value === 'string' ? value.trim() : value;
+export class ImportTmdbMovieDto {
+  @IsInt()
+  @Min(1)
+  @Max(MAX_TMDB_ID)
+  tmdbId!: number;
+
+  @OptionalField()
+  @Uuid()
+  movieId?: string;
 }

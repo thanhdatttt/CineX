@@ -1,4 +1,4 @@
-import { Transform } from 'class-transformer';
+import { Trim } from '../common/request-validation';
 import {
   IsEmail,
   IsString,
@@ -8,9 +8,7 @@ import {
 } from 'class-validator';
 
 export class RegisterDto {
-  @Transform(({ value }): string =>
-    typeof value === 'string' ? value.trim() : '',
-  )
+  @Trim()
   @IsEmail()
   @MaxLength(320)
   email!: string;
@@ -22,9 +20,7 @@ export class RegisterDto {
 }
 
 export class LoginDto {
-  @Transform(({ value }): string =>
-    typeof value === 'string' ? value.trim() : '',
-  )
+  @Trim()
   @IsEmail()
   @MaxLength(320)
   email!: string;

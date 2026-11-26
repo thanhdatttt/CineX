@@ -1,9 +1,10 @@
 import {
-  BadRequestException,
   ConflictException,
+  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ApiError } from '../common/api-error';
 import { PublicationStatus, ShowtimeStatus } from '../generated/prisma/enums';
 import { PrismaService } from '../database/prisma.service';
 import {
@@ -53,8 +54,10 @@ export class MoviesService {
   async importTmdbMovie(input: ImportTmdbMovieDto) {
     const details = await this.tmdb.getMovie(input.tmdbId);
     if (details.durationMins === null && !input.movieId) {
-      throw new BadRequestException(
-        'TMDB did not provide a valid runtime. Create the movie manually or edit its runtime before importing.',
+      throw new ApiError(
+        HttpStatus.BAD_REQUEST,
+        'TMDB_RUNTIME_REQUIRED',
+        'TMDB did not provide a valid runtime. Create the movie manually or supply an existing CineX movie ID.',
       );
     }
 

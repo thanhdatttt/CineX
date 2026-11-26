@@ -11,3 +11,5 @@
 **Implementation steps.** Validate and normalize body, path, query and relevant headers before invoking application services; reject invalid/unknown fields; standardize `400 VALIDATION_ERROR` and error envelope/codes; document auth and idempotency; enforce body limits and safe SQL; audit ownership, role/scope, proxy trust, webhook signature and log redaction.
 
 **Acceptance criteria.** OpenAPI describes supported endpoints, constraints and errors; malformed requests are rejected before business services run; unauthenticated/forbidden/invalid/conflict/throttled cases map correctly; security tests prove ownership and scope checks; no stack/secret leakage.
+
+**Current evidence.** The implemented auth, users, catalogue, and TMDB endpoints use strict DTO validation, a JSON body limit, and a common error envelope. See the [OpenAPI contract](../../architecture/openapi.yaml) and the HTTP boundary tests in `apps/api/test/request-validation.e2e-spec.ts`. Completion still depends on the planned idempotent operations, webhook, cinema-scoped staff operations, and rate limiting needed to verify the remaining criteria.
