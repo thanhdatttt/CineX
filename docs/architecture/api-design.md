@@ -29,6 +29,14 @@ Admin/staff operational reads and writes must also enforce scope on the server. 
 
 Keep TMDB credentials and outbound calls in the backend integration adapter. Search/detail results are candidate data only: importing requires an explicit admin action and creates/updates a persisted CineX movie record. Public `GET /movies` and `GET /movies/:id` read CineX persistence only and must not proxy to TMDB. If TMDB is absent or down, manual admin catalogue operations and public CineX reads remain available.
 
+### Implemented room and seat operations (M1-T04)
+
+- Admins list and create rooms at `/admin/cinemas/:cinemaId/rooms` and read, patch, or delete a room at `/admin/rooms/:roomId`. Room responses include `layoutLocked`.
+- Admins list and add seats at `/admin/rooms/:roomId/seats` and read, patch, or delete a seat at `/admin/rooms/:roomId/seats/:seatId`. A seat cannot be transferred to another room. A seat requested under the wrong room returns 404.
+- Both lists use `page` and `limit`. Rooms sort by name and ID; seats sort by row label and seat number. Room names are unique per cinema. Trimmed row labels are case sensitive, and the pair of row label and seat number is unique per room. New rooms start active; seats default to `STANDARD` and enabled.
+- After inventory has been generated, room renames/deletion and adding, deleting, renumbering, relabelling, or changing the type of a seat return `409 ROOM_LAYOUT_LOCKED`. Create a new room for a different layout. Status changes and seat eligibility changes affect future scheduling; existing inventory and booking labels stay intact.
+- Deleting a room or seat returns 204. A room must have no seats and no showtime references before deletion. Otherwise, the API returns `409 ROOM_IN_USE` for an unlocked layout.
+
 ## Request and response rules
 
 [OpenAPI contract for implemented endpoints](openapi.yaml) covers auth, users, catalogue, and optional TMDB.

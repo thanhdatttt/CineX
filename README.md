@@ -135,4 +135,4 @@ npm run test:e2e
 npm run build
 ```
 
-`npm run test:e2e` currently exercises only the NestJS starter endpoint. Integration tests that need PostgreSQL must use the isolated Neon test target, never development or production data. Load/concurrency results should only be recorded after actual runs against PostgreSQL.
+`npm run test:e2e` runs the HTTP tests. The M1-T04 suite (`rooms-postgres.e2e-spec.ts`) also runs when `CINEX_ROOM_TEST_DATABASE_URL` points to a disposable PostgreSQL database named `cinex_room_test` on loopback. Apply the migrations there first using the same URL as `DATABASE_URL`, then run `NODE_OPTIONS=--experimental-vm-modules npm run test:e2e -- --runInBand` to let Jest load Prisma's query engine. The suite inserts fixtures; discard the test database after running it. Use a separate isolated Neon target for Neon deployment checks. Load/concurrency results should only be recorded after actual runs against PostgreSQL.

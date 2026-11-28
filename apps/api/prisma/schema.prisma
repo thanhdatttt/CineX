@@ -149,6 +149,7 @@ model CinemaRoom {
   name      String       @db.VarChar(100)
   status    RecordStatus @default(ACTIVE)
   cinema    Cinema       @relation(fields: [cinemaId], references: [id], onDelete: Restrict)
+  layoutLocked Boolean   @default(false) @map("layout_locked")
   seats     Seat[]
   showtimes Showtime[]
   createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
