@@ -111,11 +111,14 @@ model User {
 model Movie {
   id            String             @id @default(uuid()) @db.Uuid
   title         String             @db.VarChar(200)
+  tmdbId        Int?               @unique(map: "movies_tmdb_id_key") @map("tmdb_id")
   synopsis      String?            @db.Text
   durationMins  Int                @map("duration_mins")
   ageRating     String?            @map("age_rating") @db.VarChar(20)
   genres        String[]           @default([])
   trailerUrl    String?            @map("trailer_url") @db.VarChar(2048)
+  posterUrl     String?            @map("poster_url") @db.VarChar(2048)
+  backdropUrl   String?            @map("backdrop_url") @db.VarChar(2048)
   releaseDate   DateTime?          @map("release_date") @db.Date
   status        PublicationStatus  @default(DRAFT)
   showtimes     Showtime[]

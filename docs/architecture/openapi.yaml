@@ -1,0 +1,436 @@
+openapi: 3.0.3
+info:
+  title: CineX API
+  version: 0.1.0
+  description: |
+    Contract for the routes currently implemented. Query parameters are single
+    values. Unknown fields and unexpected query parameters return 400.
+    Numeric path and query parameters use decimal digits only. JSON body
+    integers must be numbers. Movie and cinema text fields reject NUL characters.
+    Bodies use application/json and are limited to
+    100 KiB. Operations without a request body accept no fields in the body.
+    No current operation consumes Idempotency-Key. Future reservation and
+    payment contracts will declare it on the operations that require it.
+paths:
+  /:
+    get:
+      summary: API greeting
+      responses:
+        '200': { description: Plain text API greeting }
+        '400': &badRequest { $ref: '#/components/responses/Validation' }
+  /health:
+    get:
+      summary: Check API liveness
+      responses:
+        '200': { description: API is running }
+        '400': *badRequest
+  /auth/register:
+    post:
+      summary: Register a customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Register' }
+      responses:
+        '201': { description: Customer and issued tokens }
+        '400': *badRequest
+        '409': &conflict { $ref: '#/components/responses/Conflict' }
+        '413': &tooLarge { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': &unsupported { $ref: '#/components/responses/UnsupportedMediaType' }
+  /auth/login:
+    post:
+      summary: Authenticate a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Login' }
+      responses:
+        '200': { description: User and issued tokens }
+        '400': *badRequest
+        '401': &unauthenticated { $ref: '#/components/responses/Unauthenticated' }
+        '413': *tooLarge
+        '415': *unsupported
+  /auth/refresh:
+    post:
+      summary: Rotate a refresh token
+      requestBody: &refreshBody
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshToken' }
+      responses:
+        '200': { description: Rotated tokens }
+        '400': *badRequest
+        '401': *unauthenticated
+        '413': *tooLarge
+        '415': *unsupported
+  /auth/logout:
+    post:
+      summary: Revoke the refresh token family
+      requestBody: *refreshBody
+      responses:
+        '200': { description: Logout acknowledged }
+        '400': *badRequest
+        '413': *tooLarge
+        '415': *unsupported
+  /auth/me:
+    get:
+      summary: Read the authenticated identity
+      security: &bearer [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Current user identity }
+        '400': *badRequest
+        '401': *unauthenticated
+  /users/{id}:
+    parameters: &idParameters [{ $ref: '#/components/parameters/Id' }]
+    get:
+      summary: Read a user profile as the owner or an admin
+      security: *bearer
+      responses:
+        '200': { description: User profile }
+        '400': *badRequest
+        '401': *unauthenticated
+        '403': &forbidden { $ref: '#/components/responses/Forbidden' }
+        '404': &notFound { $ref: '#/components/responses/NotFound' }
+  /users/admin/identity-check:
+    get:
+      summary: Verify admin access
+      security: *bearer
+      responses:
+        '200': { description: Admin access confirmed }
+        '400': *badRequest
+        '401': *unauthenticated
+        '403': *forbidden
+  /movies:
+    get:
+      summary: List published CineX movies
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - name: filter
+          in: query
+          schema: { type: string, enum: [nowShowing, comingSoon] }
+      responses:
+        '200': { description: Movie list with page metadata }
+        '400': *badRequest
+  /movies/{id}:
+    parameters: *idParameters
+    get:
+      summary: Read a published CineX movie
+      responses:
+        '200': { description: Movie details }
+        '400': *badRequest
+        '404': *notFound
+  /cinemas:
+    get:
+      summary: List active cinemas
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200': { description: Cinema list with page metadata }
+        '400': *badRequest
+  /cinemas/{id}:
+    parameters: *idParameters
+    get:
+      summary: Read an active cinema
+      responses:
+        '200': { description: Cinema details }
+        '400': *badRequest
+        '404': *notFound
+  /admin/movies:
+    post:
+      summary: Create a draft movie (admin)
+      security: *bearer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/MovieFields'
+                - type: object
+                  required: [title, durationMins]
+            example: { title: CineX Movie, durationMins: 90 }
+      responses: &adminCreateResponses
+        '201': { description: Created catalogue record }
+        '400': *badRequest
+        '401': *unauthenticated
+        '403': *forbidden
+        '413': *tooLarge
+        '415': *unsupported
+  /admin/movies/{id}:
+    parameters: *idParameters
+    patch:
+      summary: Update movie metadata (admin)
+      security: *bearer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MovieFields' }
+      responses: &adminUpdateResponses
+        '200': { description: Updated catalogue record }
+        '400': *badRequest
+        '401': *unauthenticated
+        '403': *forbidden
+        '404': *notFound
+        '413': *tooLarge
+        '415': *unsupported
+  /admin/movies/{id}/publish:
+    parameters: *idParameters
+    post:
+      summary: Publish a movie (admin)
+      security: *bearer
+      responses: &adminStatusResponses
+        '201': { description: Catalogue record with its new status }
+        '400': *badRequest
+        '401': *unauthenticated
+        '403': *forbidden
+        '404': *notFound
+  /admin/movies/{id}/unpublish:
+    parameters: *idParameters
+    post:
+      summary: Return a movie to draft (admin)
+      security: *bearer
+      responses: *adminStatusResponses
+  /admin/movies/{id}/archive:
+    parameters: *idParameters
+    post:
+      summary: Archive a movie (admin)
+      security: *bearer
+      responses: *adminStatusResponses
+  /admin/cinemas:
+    post:
+      summary: Create a cinema (admin)
+      security: *bearer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/CinemaFields'
+                - type: object
+                  required: [name, address, timezone]
+            example: { name: CineX Cinema, address: 123 Example Street, timezone: Asia/Ho_Chi_Minh }
+      responses: *adminCreateResponses
+  /admin/cinemas/{id}:
+    parameters: *idParameters
+    patch:
+      summary: Update a cinema (admin)
+      security: *bearer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CinemaFields' }
+      responses: *adminUpdateResponses
+  /admin/cinemas/{id}/activate:
+    parameters: *idParameters
+    post:
+      summary: Activate a cinema (admin)
+      security: *bearer
+      responses: *adminStatusResponses
+  /admin/cinemas/{id}/deactivate:
+    parameters: *idParameters
+    post:
+      summary: Deactivate a cinema (admin)
+      security: *bearer
+      responses: *adminStatusResponses
+  /admin/cinemas/{id}/archive:
+    parameters: *idParameters
+    post:
+      summary: Archive a cinema (admin)
+      security: *bearer
+      responses: *adminStatusResponses
+  /admin/tmdb/movies:
+    get:
+      summary: Search TMDB candidates (admin)
+      security: *bearer
+      parameters:
+        - name: query
+          in: query
+          required: true
+          description: Trimmed search text.
+          schema: { type: string, minLength: 1, maxLength: 100 }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500, default: 1 }
+      responses:
+        '200': { description: TMDB candidates with page metadata }
+        '400': *badRequest
+        '401': *unauthenticated
+        '403': *forbidden
+        '404': *notFound
+        '503': &unavailable { $ref: '#/components/responses/Unavailable' }
+  /admin/tmdb/movies/{tmdbId}:
+    get:
+      summary: Read a TMDB candidate (admin)
+      security: *bearer
+      parameters:
+        - name: tmdbId
+          in: path
+          required: true
+          schema: &tmdbId { type: integer, minimum: 1, maximum: 2147483647 }
+      responses:
+        '200': { description: TMDB candidate metadata }
+        '400': *badRequest
+        '401': *unauthenticated
+        '403': *forbidden
+        '404': *notFound
+        '503': *unavailable
+  /admin/movies/import-tmdb:
+    post:
+      summary: Import or refresh a CineX movie from TMDB (admin)
+      security: *bearer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [tmdbId]
+              properties:
+                tmdbId: *tmdbId
+                movieId: &id { type: string, format: uuid }
+            example: { tmdbId: 123 }
+      responses:
+        '201': { description: Imported or updated CineX movie and source reference }
+        '400':
+          description: Invalid input (VALIDATION_ERROR) or upstream runtime missing for a new movie (TMDB_RUNTIME_REQUIRED)
+          headers:
+            X-Request-Id:
+              schema: { type: string, format: uuid }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': *unauthenticated
+        '403': *forbidden
+        '404': *notFound
+        '409': *conflict
+        '413': *tooLarge
+        '415': *unsupported
+        '503': *unavailable
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Send one Authorization header with a CineX access token.
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: *id
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 21474837, default: 1 }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+  schemas:
+    Register:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: &email { type: string, format: email, maxLength: 320, description: Trimmed before validation. }
+        password: { type: string, format: password, minLength: 12, maxLength: 128 }
+    Login:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: *email
+        password: { type: string, format: password, minLength: 1, maxLength: 128 }
+    RefreshToken:
+      type: object
+      additionalProperties: false
+      required: [refreshToken]
+      properties:
+        refreshToken: { type: string, pattern: '^[A-Za-z0-9_-]{43}$' }
+    MovieFields:
+      type: object
+      additionalProperties: false
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200, description: Trimmed before validation. }
+        synopsis: { type: string, nullable: true, maxLength: 10000 }
+        durationMins: { type: integer, minimum: 1, maximum: 1000 }
+        ageRating: { type: string, nullable: true, maxLength: 20 }
+        genres:
+          type: array
+          maxItems: 20
+          items: { type: string, maxLength: 50 }
+        posterUrl: &mediaUrl { type: string, nullable: true, format: uri, pattern: '^https?://', maxLength: 2048 }
+        backdropUrl: *mediaUrl
+        trailerUrl: *mediaUrl
+        releaseDate: { type: string, nullable: true, format: date, pattern: '^\d{4}-\d{2}-\d{2}$' }
+    CinemaFields:
+      type: object
+      additionalProperties: false
+      description: String fields are trimmed before validation.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        address: { type: string, minLength: 1, maxLength: 500 }
+        timezone: { type: string, minLength: 1, maxLength: 100, description: Valid IANA time zone. }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            requestId: { type: string, format: uuid }
+  responses:
+    Validation:
+      description: Malformed JSON or invalid request fields (VALIDATION_ERROR)
+      headers: &requestIdHeader
+        X-Request-Id:
+          schema: { type: string, format: uuid }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Request data is invalid.
+              requestId: 63b316d3-b197-44ed-a149-caac26a23cc4
+    Unauthenticated:
+      description: Missing or invalid credentials (UNAUTHENTICATED)
+      headers: *requestIdHeader
+      content: &errorContent { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Forbidden:
+      description: Authenticated user lacks permission (FORBIDDEN)
+      headers: *requestIdHeader
+      content: *errorContent
+    NotFound:
+      description: Record is missing or not visible to the caller (RESOURCE_NOT_FOUND)
+      headers: *requestIdHeader
+      content: *errorContent
+    Conflict:
+      description: Existing state prevents the operation (CONFLICT)
+      headers: *requestIdHeader
+      content: *errorContent
+    PayloadTooLarge:
+      description: Body exceeds the allowed size (PAYLOAD_TOO_LARGE)
+      headers: *requestIdHeader
+      content: *errorContent
+    UnsupportedMediaType:
+      description: Unsupported request media type (UNSUPPORTED_MEDIA_TYPE)
+      headers: *requestIdHeader
+      content: *errorContent
+    Unavailable:
+      description: TMDB is disabled or unavailable (SERVICE_UNAVAILABLE)
+      headers: *requestIdHeader
+      content: *errorContent

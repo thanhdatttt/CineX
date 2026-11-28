@@ -8,6 +8,6 @@
 
 **Files/modules affected.** React client customer routes/components, API client and UI state.
 
-**Implementation steps.** Implement login/register; movie/cinema/showtime discovery; seat selection and server-expiry countdown; booking/voucher summary; payment pending/unknown states; history/detail and QR ticket display; recover from conflict/expiry.
+**Implementation steps.** Implement login/register; movie/cinema/showtime discovery; seat selection and server-expiry countdown; booking/voucher summary; payment pending/unknown states; history/detail and QR ticket display; validate and normalize user input before sending each request, show field errors, and recover from conflict/expiry.
 
-**Acceptance criteria.** Screens use server prices/state; unknown payment differs from failure; seat conflicts refresh recoverably; no secret or authoritative payment state is stored in client.
+**Acceptance criteria.** Invalid user input is blocked before request submission with actionable field errors; screens use server prices/state; unknown payment differs from failure; seat conflicts refresh recoverably; no secret or authoritative payment state is stored in client.

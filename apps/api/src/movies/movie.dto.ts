@@ -1,11 +1,15 @@
-import { Transform, Type } from 'class-transformer';
+import {
+  IsText,
+  OptionalField,
+  PaginationQueryDto,
+  Trim,
+} from '../common/request-validation';
 import {
   ArrayMaxSize,
   IsArray,
   IsEnum,
   IsInt,
   IsOptional,
-  IsString,
   IsUrl,
   IsDateString,
   Max,
@@ -15,47 +19,55 @@ import {
   MinLength,
 } from 'class-validator';
 
-function trimString(value: unknown): unknown {
-  return typeof value === 'string' ? value.trim() : value;
-}
-
 export class CreateMovieDto {
-  @Transform(({ value }) => trimString(value))
-  @IsString()
+  @Trim()
+  @IsText()
   @MinLength(1)
   @MaxLength(200)
   title!: string;
 
   @IsOptional()
-  @IsString()
+  @IsText()
   @MaxLength(10000)
   synopsis?: string | null;
 
-  @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(1000)
   durationMins!: number;
 
   @IsOptional()
-  @IsString()
+  @IsText()
   @MaxLength(20)
   ageRating?: string | null;
 
-  @IsOptional()
+  @OptionalField()
   @IsArray()
   @ArrayMaxSize(20)
-  @IsString({ each: true })
+  @IsText({ each: true })
   @MaxLength(50, { each: true })
   genres?: string[];
 
   @IsOptional()
-  @IsUrl({ require_protocol: true })
+  @IsText()
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
   @MaxLength(2048)
   trailerUrl?: string | null;
 
   @IsOptional()
-  @IsString()
+  @IsText()
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  @MaxLength(2048)
+  posterUrl?: string | null;
+
+  @IsOptional()
+  @IsText()
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  @MaxLength(2048)
+  backdropUrl?: string | null;
+
+  @IsOptional()
+  @IsText()
   @MinLength(10)
   @MaxLength(10)
   @IsDateString({ strict: true })
@@ -64,44 +76,56 @@ export class CreateMovieDto {
 }
 
 export class UpdateMovieDto {
-  @IsOptional()
-  @Transform(({ value }) => trimString(value))
-  @IsString()
+  @OptionalField()
+  @Trim()
+  @IsText()
   @MinLength(1)
   @MaxLength(200)
   title?: string;
 
   @IsOptional()
-  @IsString()
+  @IsText()
   @MaxLength(10000)
   synopsis?: string | null;
 
-  @IsOptional()
-  @Type(() => Number)
+  @OptionalField()
   @IsInt()
   @Min(1)
   @Max(1000)
   durationMins?: number;
 
   @IsOptional()
-  @IsString()
+  @IsText()
   @MaxLength(20)
   ageRating?: string | null;
 
-  @IsOptional()
+  @OptionalField()
   @IsArray()
   @ArrayMaxSize(20)
-  @IsString({ each: true })
+  @IsText({ each: true })
   @MaxLength(50, { each: true })
   genres?: string[];
 
   @IsOptional()
-  @IsUrl({ require_protocol: true })
+  @IsText()
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
   @MaxLength(2048)
   trailerUrl?: string | null;
 
   @IsOptional()
-  @IsString()
+  @IsText()
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  @MaxLength(2048)
+  posterUrl?: string | null;
+
+  @IsOptional()
+  @IsText()
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  @MaxLength(2048)
+  backdropUrl?: string | null;
+
+  @IsOptional()
+  @IsText()
   @MinLength(10)
   @MaxLength(10)
   @IsDateString({ strict: true })
@@ -109,21 +133,8 @@ export class UpdateMovieDto {
   releaseDate?: string | null;
 }
 
-export class ListMoviesQueryDto {
-  @IsOptional()
+export class ListMoviesQueryDto extends PaginationQueryDto {
+  @OptionalField()
   @IsEnum({ nowShowing: 'nowShowing', comingSoon: 'comingSoon' })
   filter?: 'nowShowing' | 'comingSoon';
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page = 1;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  limit = 20;
 }

@@ -1,5 +1,6 @@
 import { Controller, Get, Param, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
+import { IdParamsDto } from '../common/request-validation';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
@@ -11,9 +12,9 @@ import { UsersService } from './users.service';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Get(':userId')
-  getProfile(@Req() request: Request, @Param('userId') userId: string) {
-    return this.usersService.getProfile(request.user!, userId);
+  @Get(':id')
+  getProfile(@Req() request: Request, @Param() { id }: IdParamsDto) {
+    return this.usersService.getProfile(request.user!, id);
   }
 
   @Get('admin/identity-check')

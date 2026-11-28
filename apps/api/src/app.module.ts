@@ -1,4 +1,10 @@
 import { Module } from '@nestjs/common';
+import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
+import { ApiExceptionFilter } from './common/api-exception.filter';
+import {
+  RequestInputInterceptor,
+  RequestValidationPipe,
+} from './common/request-validation';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DatabaseModule } from './database/database.module';
@@ -16,6 +22,11 @@ import { CinemasModule } from './cinemas/cinemas.module';
     CinemasModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    { provide: APP_FILTER, useClass: ApiExceptionFilter },
+    { provide: APP_INTERCEPTOR, useClass: RequestInputInterceptor },
+    { provide: APP_PIPE, useClass: RequestValidationPipe },
+  ],
 })
 export class AppModule {}

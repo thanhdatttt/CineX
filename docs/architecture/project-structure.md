@@ -72,6 +72,7 @@ apps/web/src/
 ├── app/                              # Router, providers, application shell
 ├── api/                              # Typed API client and error mapping
 ├── components/                       # Reusable presentation components
+├── forms/                            # Reusable form validation helpers/schemas when needed
 ├── features/
 │   ├── auth/
 │   ├── movies/
@@ -88,6 +89,8 @@ apps/web/src/
 ```
 
 The frontend displays snapshots and mutation results. It never calculates authoritative prices, owns seat availability, authorizes access, or marks a booking paid from a redirect. Use server-provided expiry timestamps and recover from conflicts by refreshing authoritative API state.
+
+Validate and normalize form/query input before sending a request; show field-level errors and block invalid submissions. Keep client validation focused on user feedback. The API must independently validate/normalize each request before business services run, and those services must still enforce domain rules and current state.
 
 ## Data, configuration, and local services
 
@@ -110,5 +113,6 @@ The frontend displays snapshots and mutation results. It never calculates author
 - [Database design](database-design.md)
 - [API design](api-design.md)
 - [Security design](security-design.md)
+- [Request validation decision](decisions/ADR-010-request-validation-boundaries.md)
 - [Requirements](../requirements.md)
 - [Planning roadmap](../planning/roadmap.md)

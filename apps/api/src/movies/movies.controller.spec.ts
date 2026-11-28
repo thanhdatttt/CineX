@@ -11,6 +11,9 @@ describe('MoviesController access policy', () => {
       'publish',
       'unpublish',
       'archive',
+      'searchTmdb',
+      'getTmdbCandidate',
+      'importTmdb',
     ] as const;
     for (const action of writes) {
       const handler = Object.getOwnPropertyDescriptor(

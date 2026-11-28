@@ -21,7 +21,11 @@ export class JwtAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     const authorization = request.headers.authorization;
-    if (!authorization || authorization.length > 8192) {
+    if (
+      !authorization ||
+      authorization.length > 8192 ||
+      (request.headersDistinct?.authorization?.length ?? 0) > 1
+    ) {
       throw new UnauthorizedException('Authentication required.');
     }
 

@@ -57,8 +57,11 @@ In Neon Console, open the database branch and choose **Connect**. This repositor
 | `TZ` | `UTC` | Timestamp handling; persisted timestamps use UTC and are converted at API/UI boundaries. |
 | `RESERVATION_HOLD_MINUTES` | `5` | Active seat-hold duration. |
 | `PAYMENT_RECONCILIATION_TIMEOUT_MINUTES` | `30` | Deadline before an unresolved payment requires manual reconciliation, per ADR-003. |
+| `TMDB_API_READ_ACCESS_TOKEN` | optional | Backend-only TMDB read token for admin movie search/import. Leave blank to disable TMDB; never expose it to the browser. |
 
 The API validates required settings and positive integer values at startup, and reports configuration errors without printing the connection string. Money is stored as integer VND đồng; floating-point arithmetic is not used for prices.
+
+Optional admin TMDB operations use `GET /admin/tmdb/movies?query=...`, `GET /admin/tmdb/movies/:tmdbId`, and `POST /admin/movies/import-tmdb` (with `tmdbId` and optional CineX `movieId`). The integration is disabled until `TMDB_API_READ_ACCESS_TOKEN` is added to the API environment. Public movie reads and manual catalogue editing continue to use CineX data when it is unset or TMDB is unavailable. Before TMDB-derived data is displayed, include TMDB's approved logo and required attribution in an About/Credits section: “This product uses the TMDB API but is not endorsed or certified by TMDB.” Commercial use may require a separate TMDB license. See [ADR-009](docs/architecture/decisions/ADR-009-optional-tmdb-vietqr.md).
 
 Generate and validate Prisma locally (these commands do not apply a migration):
 

@@ -1,6 +1,17 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { ApiError } from '../common/api-error';
 import { PublicationStatus, ShowtimeStatus } from '../generated/prisma/enums';
 import { PrismaService } from '../database/prisma.service';
+import {
+  ImportTmdbMovieDto,
+  SearchTmdbMoviesQueryDto,
+} from '../integrations/tmdb/tmdb.dto';
+import { TmdbService } from '../integrations/tmdb/tmdb.service';
 import {
   CreateMovieDto,
   ListMoviesQueryDto,
@@ -15,15 +26,123 @@ const movieFields = {
   ageRating: true,
   genres: true,
   trailerUrl: true,
+  posterUrl: true,
+  backdropUrl: true,
   releaseDate: true,
   status: true,
   createdAt: true,
   updatedAt: true,
 } as const;
 
+const importedMovieFields = { ...movieFields, tmdbId: true } as const;
+
 @Injectable()
 export class MoviesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tmdb: TmdbService,
+  ) {}
+
+  searchTmdb(query: SearchTmdbMoviesQueryDto) {
+    return this.tmdb.searchMovies(query.query, query.page);
+  }
+
+  getTmdbCandidate(tmdbId: number) {
+    return this.tmdb.getMovie(tmdbId);
+  }
+
+  async importTmdbMovie(input: ImportTmdbMovieDto) {
+    const details = await this.tmdb.getMovie(input.tmdbId);
+    const metadata = {
+      tmdbId: details.tmdbId,
+      title: details.title,
+      ...(details.synopsis !== null ? { synopsis: details.synopsis } : {}),
+      ...(details.ageRating !== null ? { ageRating: details.ageRating } : {}),
+      ...(details.genres.length > 0 ? { genres: details.genres } : {}),
+      ...(details.trailerUrl !== null
+        ? { trailerUrl: details.trailerUrl }
+        : {}),
+      ...(details.releaseDate !== null
+        ? { releaseDate: toDate(details.releaseDate) }
+        : {}),
+      ...(details.posterUrl !== null ? { posterUrl: details.posterUrl } : {}),
+      ...(details.backdropUrl !== null
+        ? { backdropUrl: details.backdropUrl }
+        : {}),
+      ...(details.durationMins !== null
+        ? { durationMins: details.durationMins }
+        : {}),
+    };
+
+    if (input.movieId) {
+      try {
+        const movie = await this.prisma.movie.update({
+          where: {
+            id: input.movieId,
+            OR: [{ tmdbId: null }, { tmdbId: details.tmdbId }],
+          },
+          data: metadata,
+          select: importedMovieFields,
+        });
+        return { data: movie, sourceUrl: details.sourceUrl, action: 'updated' };
+      } catch (error) {
+        if (hasPrismaErrorCode(error, 'P2002')) {
+          throw new ConflictException(
+            'This TMDB movie is already linked to another CineX movie.',
+          );
+        }
+        if (hasPrismaErrorCode(error, 'P2025')) {
+          const current = await this.prisma.movie.findUnique({
+            where: { id: input.movieId },
+            select: { id: true },
+          });
+          if (!current) throw new NotFoundException('Movie not found.');
+          throw new ConflictException(
+            'This movie is already linked to a different TMDB record.',
+          );
+        }
+        throw error;
+      }
+    }
+
+    if (details.durationMins === null) {
+      // Refresh existing records without writing to their local runtime.
+      try {
+        const movie = await this.prisma.movie.update({
+          where: { tmdbId: details.tmdbId },
+          data: metadata,
+          select: importedMovieFields,
+        });
+        return { data: movie, sourceUrl: details.sourceUrl, action: 'synced' };
+      } catch (error) {
+        if (!hasPrismaErrorCode(error, 'P2025')) throw error;
+        throw new ApiError(
+          HttpStatus.BAD_REQUEST,
+          'TMDB_RUNTIME_REQUIRED',
+          'TMDB did not provide a valid runtime. Create the movie manually or supply an existing CineX movie ID.',
+        );
+      }
+    }
+
+    const movie = await this.prisma.movie.upsert({
+      where: { tmdbId: details.tmdbId },
+      create: {
+        ...metadata,
+        synopsis: details.synopsis,
+        ageRating: details.ageRating,
+        genres: details.genres,
+        trailerUrl: details.trailerUrl,
+        releaseDate: toDate(details.releaseDate),
+        posterUrl: details.posterUrl,
+        backdropUrl: details.backdropUrl,
+        durationMins: details.durationMins,
+        status: PublicationStatus.DRAFT,
+      },
+      update: metadata,
+      select: importedMovieFields,
+    });
+    return { data: movie, sourceUrl: details.sourceUrl, action: 'synced' };
+  }
 
   async listPublic(query: ListMoviesQueryDto) {
     const page = query.page ?? 1;
@@ -115,4 +234,13 @@ export class MoviesService {
 function toDate(value: string | null | undefined): Date | null | undefined {
   if (value === undefined || value === null) return value;
   return new Date(`${value}T00:00:00.000Z`);
+}
+
+function hasPrismaErrorCode(error: unknown, code: string): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === code
+  );
 }
