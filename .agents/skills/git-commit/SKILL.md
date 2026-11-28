@@ -1,6 +1,6 @@
 ---
 name: git-commit
-description: Safely create and optionally push a Git commit for the current task. Review repository changes, stage only relevant files, verify the commit, and require human approval before pushing.
+description: Safely create and push a Git commit for the current task. Review repository changes, stage only relevant files, verify the commit, and require human approval before pushing.
 ---
 
 # Safe Git Commit
@@ -70,7 +70,7 @@ Examples:
 
 ### 5. Push with Human Verification
 
-Pushing is optional and requires explicit human approval.
+Pushing requires explicit human approval.
 
 Before pushing:
 
