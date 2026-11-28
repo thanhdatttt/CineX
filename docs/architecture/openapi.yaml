@@ -315,6 +315,149 @@ paths:
         '413': *tooLarge
         '415': *unsupported
         '503': *unavailable
+  /admin/cinemas/{cinemaId}/rooms:
+    parameters:
+      - $ref: '#/components/parameters/CinemaId'
+    get:
+      summary: List rooms in a cinema (admin)
+      security: *bearer
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200': { description: Paginated rooms }
+        '400': *badRequest
+        '401': *unauthenticated
+        '403': *forbidden
+        '404': *notFound
+    post:
+      summary: Create a room (admin)
+      security: *bearer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateRoom' }
+      responses:
+        '201': { description: Created room }
+        '400': *badRequest
+        '401': *unauthenticated
+        '403': *forbidden
+        '404': *notFound
+        '409': { $ref: '#/components/responses/RoomConflict' }
+        '413': *tooLarge
+        '415': *unsupported
+  /admin/rooms/{roomId}:
+    parameters:
+      - $ref: '#/components/parameters/RoomId'
+    get:
+      summary: Read a room and its layout lock state (admin)
+      security: *bearer
+      responses:
+        '200': { description: Room details }
+        '400': *badRequest
+        '401': *unauthenticated
+        '403': *forbidden
+        '404': *notFound
+    patch:
+      summary: Edit a room or change its availability (admin)
+      security: *bearer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RoomFields' }
+      responses:
+        '200': { description: Updated room }
+        '400': *badRequest
+        '401': *unauthenticated
+        '403': *forbidden
+        '404': *notFound
+        '409': { $ref: '#/components/responses/RoomConflict' }
+        '413': *tooLarge
+        '415': *unsupported
+    delete:
+      summary: Delete an empty room with no showtimes (admin)
+      security: *bearer
+      responses:
+        '204': { description: Room deleted }
+        '400': *badRequest
+        '401': *unauthenticated
+        '403': *forbidden
+        '404': *notFound
+        '409': { $ref: '#/components/responses/RoomConflict' }
+  /admin/rooms/{roomId}/seats:
+    parameters:
+      - $ref: '#/components/parameters/RoomId'
+    get:
+      summary: List physical seats in a room (admin)
+      security: *bearer
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200': { description: Paginated seats }
+        '400': *badRequest
+        '401': *unauthenticated
+        '403': *forbidden
+        '404': *notFound
+    post:
+      summary: Add a seat before the layout is locked (admin)
+      security: *bearer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSeat' }
+      responses:
+        '201': { description: Created seat }
+        '400': *badRequest
+        '401': *unauthenticated
+        '403': *forbidden
+        '404': *notFound
+        '409': { $ref: '#/components/responses/RoomConflict' }
+        '413': *tooLarge
+        '415': *unsupported
+  /admin/rooms/{roomId}/seats/{seatId}:
+    parameters:
+      - $ref: '#/components/parameters/RoomId'
+      - $ref: '#/components/parameters/SeatId'
+    get:
+      summary: Read a physical seat in a room (admin)
+      security: *bearer
+      responses:
+        '200': { description: Seat details }
+        '400': *badRequest
+        '401': *unauthenticated
+        '403': *forbidden
+        '404': *notFound
+    patch:
+      summary: Edit a seat or change eligibility for future showtimes (admin)
+      security: *bearer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SeatFields' }
+      responses:
+        '200': { description: Updated seat }
+        '400': *badRequest
+        '401': *unauthenticated
+        '403': *forbidden
+        '404': *notFound
+        '409': { $ref: '#/components/responses/RoomConflict' }
+        '413': *tooLarge
+        '415': *unsupported
+    delete:
+      summary: Delete a seat before the layout is locked (admin)
+      security: *bearer
+      responses:
+        '204': { description: Seat deleted }
+        '400': *badRequest
+        '401': *unauthenticated
+        '403': *forbidden
+        '404': *notFound
+        '409': { $ref: '#/components/responses/RoomConflict' }
 components:
   securitySchemes:
     bearerAuth:
@@ -336,7 +479,49 @@ components:
       name: limit
       in: query
       schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    CinemaId:
+      name: cinemaId
+      in: path
+      required: true
+      schema: *id
+    RoomId:
+      name: roomId
+      in: path
+      required: true
+      schema: *id
+    SeatId:
+      name: seatId
+      in: path
+      required: true
+      schema: *id
   schemas:
+    CreateRoom:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: &roomName { type: string, minLength: 1, maxLength: 100, description: Trimmed name. }
+    RoomFields:
+      type: object
+      additionalProperties: false
+      description: Name edits are blocked after inventory generation. Status affects eligibility for future schedules.
+      properties:
+        name: *roomName
+        status: { type: string, enum: [ACTIVE, INACTIVE, ARCHIVED] }
+    SeatFields:
+      type: object
+      additionalProperties: false
+      description: After inventory generation only changes to isEnabled are allowed.
+      properties:
+        rowLabel: { type: string, minLength: 1, maxLength: 10, description: Trimmed case-sensitive row label. }
+        seatNumber: { type: integer, minimum: 1, maximum: 2147483647 }
+        seatType: { type: string, enum: [STANDARD, VIP, COUPLE] }
+        isEnabled: { type: boolean }
+    CreateSeat:
+      allOf:
+        - $ref: '#/components/schemas/SeatFields'
+        - type: object
+          required: [rowLabel, seatNumber]
     Register:
       type: object
       additionalProperties: false
@@ -432,5 +617,9 @@ components:
       content: *errorContent
     Unavailable:
       description: TMDB is disabled or unavailable (SERVICE_UNAVAILABLE)
+      headers: *requestIdHeader
+      content: *errorContent
+    RoomConflict:
+      description: Layout is immutable (ROOM_LAYOUT_LOCKED), room has seats or showtimes (ROOM_IN_USE), or label/name already exists (CONFLICT)
       headers: *requestIdHeader
       content: *errorContent

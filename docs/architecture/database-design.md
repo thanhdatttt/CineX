@@ -17,7 +17,7 @@ Historical rows use `ON DELETE RESTRICT`: movies and rooms referenced by showtim
 | Money | `Voucher` and redemption/usage; `Payment -> Booking` with provider reference, amount, currency, status, idempotency reference; `PaymentWebhook` with provider event ID, signature/processing state and safely retained payload. |
 | Admission/reliability | `Ticket -> BookingItem` with opaque unique code, status and validation fields; `IdempotencyKey` with scope/key/fingerprint/status/resource response; `OutboxEvent` with aggregate, event type, payload, publish status and timestamps. |
 
-Room-layout changes must not corrupt historical inventory. Prevent destructive seat edits after showtime inventory exists or version/snapshot the layout. A showtime references a room within the cinema context; enforce non-overlapping room schedules (including configured turnover buffer) in the application transaction and, where practical, a PostgreSQL exclusion constraint.
+The first inventory insert sets `cinema_rooms.layout_locked` in the same transaction. The migration also locks layouts with existing inventory. PostgreSQL triggers reject changes to structural room/seat fields and deletion after the lock is set. Inventory seats must belong to the showtime room, and a showtime cannot change rooms while it has inventory. Room status and seat eligibility affect future scheduling only. Room layout writes take a room row lock before reading or editing seats. M1-T05 inventory generation must acquire the same room lock (`FOR NO KEY UPDATE`) before reading eligible seats, then generate inventory in that transaction. Scheduling must enforce cinema context and prevent overlapping room schedules (including configured turnover buffer).
 
 ## Invariants and indexes
 
