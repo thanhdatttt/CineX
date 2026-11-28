@@ -6,8 +6,7 @@ import {
   Trim,
   Uuid,
 } from '../../common/request-validation';
-
-const MAX_TMDB_ID = 2_147_483_647;
+import { MAX_TMDB_ID } from './tmdb.types';
 
 export class SearchTmdbMoviesQueryDto {
   @Trim()

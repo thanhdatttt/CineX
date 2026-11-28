@@ -3,7 +3,8 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { TmdbMovieCandidate, TmdbMovieMetadata } from './tmdb.types';
+import { MAX_TMDB_ID } from './tmdb.types';
+import type { TmdbMovieCandidate, TmdbMovieMetadata } from './tmdb.types';
 
 const TMDB_API = 'https://api.themoviedb.org/3';
 const TMDB_IMAGES = 'https://image.tmdb.org/t/p';
@@ -21,24 +22,22 @@ export class TmdbService {
     if (!isRecord(result) || !Array.isArray(result.results)) {
       throw unavailable();
     }
-    const candidates = result.results
-      .filter(isRecord)
-      .filter(
-        (movie) =>
-          typeof movie.id === 'number' &&
-          Number.isSafeInteger(movie.id) &&
-          movie.id > 0 &&
-          typeof movie.title === 'string',
-      )
-      .map((movie): TmdbMovieCandidate => ({
-        tmdbId: movie.id as number,
-        title: movie.title as string,
-        synopsis: nullableString(movie.overview)?.slice(0, 10000) ?? null,
-        releaseDate: validDate(movie.release_date),
-        posterUrl: imageUrl(movie.poster_path, 'w500'),
-        backdropUrl: imageUrl(movie.backdrop_path, 'w1280'),
-        sourceUrl: tmdbMovieUrl(movie.id as number),
-      }));
+    const candidates = result.results.flatMap((movie): TmdbMovieCandidate[] => {
+      if (!isRecord(movie) || !isTmdbId(movie.id)) return [];
+      const title = nullableString(movie.title);
+      if (!title) return [];
+      return [
+        {
+          tmdbId: movie.id,
+          title: title.slice(0, 200),
+          synopsis: nullableString(movie.overview)?.slice(0, 10000) ?? null,
+          releaseDate: validDate(movie.release_date),
+          posterUrl: imageUrl(movie.poster_path, 'w500'),
+          backdropUrl: imageUrl(movie.backdrop_path, 'w1280'),
+          sourceUrl: tmdbMovieUrl(movie.id),
+        },
+      ];
+    });
     return {
       data: candidates,
       meta: {
@@ -50,7 +49,7 @@ export class TmdbService {
   }
 
   async getMovie(tmdbId: number): Promise<TmdbMovieMetadata> {
-    if (!Number.isSafeInteger(tmdbId) || tmdbId <= 0) {
+    if (!isTmdbId(tmdbId)) {
       throw new NotFoundException('TMDB movie not found.');
     }
     const result = await this.get(
@@ -59,17 +58,12 @@ export class TmdbService {
         append_to_response: 'release_dates,videos',
       })}`,
     );
-    if (
-      !isRecord(result) ||
-      result.id !== tmdbId ||
-      typeof result.title !== 'string' ||
-      result.title.trim() === ''
-    ) {
-      throw unavailable();
-    }
+    if (!isRecord(result) || result.id !== tmdbId) throw unavailable();
+    const title = nullableString(result.title);
+    if (!title) throw unavailable();
     return {
       tmdbId,
-      title: result.title.trim().slice(0, 200),
+      title: title.slice(0, 200),
       synopsis: nullableString(result.overview)?.slice(0, 10000) ?? null,
       durationMins: positiveIntegerOrNull(result.runtime),
       ageRating: certification(result.release_dates),
@@ -117,8 +111,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function isTmdbId(value: unknown): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= 1 &&
+    value <= MAX_TMDB_ID
+  );
+}
+
 function nullableString(value: unknown): string | null {
-  return typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
+  if (typeof value !== 'string' || value.includes('\0')) return null;
+  return value.trim() || null;
 }
 
 function numberOr(value: unknown, fallback: number): number {

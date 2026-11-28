@@ -199,6 +199,38 @@ describe('AppController (e2e)', () => {
       .expect(({ body }) => expect(body.error.code).toBe('UNAUTHENTICATED'));
   });
 
+  it('requires an admin for TMDB search, detail, and import', async () => {
+    const server = request(app.getHttpServer());
+    const registration = await server
+      .post('/auth/register')
+      .send({
+        email: 'alice@example.com',
+        password: 'correct horse battery staple',
+      })
+      .expect(201);
+    const token = `Bearer ${registration.body.accessToken}`;
+
+    const tmdbRequests = () => [
+      server.get('/admin/tmdb/movies?query=Film'),
+      server.get('/admin/tmdb/movies/123'),
+      server.post('/admin/movies/import-tmdb').send({ tmdbId: 123 }),
+    ];
+
+    for (const call of tmdbRequests()) {
+      await call.expect(401).expect(({ body }) => {
+        expect(body.error.code).toBe('UNAUTHENTICATED');
+      });
+    }
+    for (const call of tmdbRequests()) {
+      await call
+        .set('Authorization', token)
+        .expect(403)
+        .expect(({ body }) => {
+          expect(body.error.code).toBe('FORBIDDEN');
+        });
+    }
+  });
+
   it('returns 401 for malformed bearer tokens', async () => {
     await request(app.getHttpServer())
       .get('/auth/me')

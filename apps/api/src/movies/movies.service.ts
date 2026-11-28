@@ -53,14 +53,6 @@ export class MoviesService {
 
   async importTmdbMovie(input: ImportTmdbMovieDto) {
     const details = await this.tmdb.getMovie(input.tmdbId);
-    if (details.durationMins === null && !input.movieId) {
-      throw new ApiError(
-        HttpStatus.BAD_REQUEST,
-        'TMDB_RUNTIME_REQUIRED',
-        'TMDB did not provide a valid runtime. Create the movie manually or supply an existing CineX movie ID.',
-      );
-    }
-
     const metadata = {
       tmdbId: details.tmdbId,
       title: details.title,
@@ -83,30 +75,52 @@ export class MoviesService {
     };
 
     if (input.movieId) {
-      const current = await this.prisma.movie.findUnique({
-        where: { id: input.movieId },
-        select: { id: true, tmdbId: true },
-      });
-      if (!current) throw new NotFoundException('Movie not found.');
-      if (current.tmdbId !== null && current.tmdbId !== details.tmdbId) {
-        throw new ConflictException(
-          'This movie is already linked to a different TMDB record.',
-        );
-      }
       try {
         const movie = await this.prisma.movie.update({
-          where: { id: input.movieId },
+          where: {
+            id: input.movieId,
+            OR: [{ tmdbId: null }, { tmdbId: details.tmdbId }],
+          },
           data: metadata,
           select: importedMovieFields,
         });
         return { data: movie, sourceUrl: details.sourceUrl, action: 'updated' };
       } catch (error) {
-        if (isUniqueConstraintError(error)) {
+        if (hasPrismaErrorCode(error, 'P2002')) {
           throw new ConflictException(
             'This TMDB movie is already linked to another CineX movie.',
           );
         }
+        if (hasPrismaErrorCode(error, 'P2025')) {
+          const current = await this.prisma.movie.findUnique({
+            where: { id: input.movieId },
+            select: { id: true },
+          });
+          if (!current) throw new NotFoundException('Movie not found.');
+          throw new ConflictException(
+            'This movie is already linked to a different TMDB record.',
+          );
+        }
         throw error;
+      }
+    }
+
+    if (details.durationMins === null) {
+      // Refresh existing records without writing to their local runtime.
+      try {
+        const movie = await this.prisma.movie.update({
+          where: { tmdbId: details.tmdbId },
+          data: metadata,
+          select: importedMovieFields,
+        });
+        return { data: movie, sourceUrl: details.sourceUrl, action: 'synced' };
+      } catch (error) {
+        if (!hasPrismaErrorCode(error, 'P2025')) throw error;
+        throw new ApiError(
+          HttpStatus.BAD_REQUEST,
+          'TMDB_RUNTIME_REQUIRED',
+          'TMDB did not provide a valid runtime. Create the movie manually or supply an existing CineX movie ID.',
+        );
       }
     }
 
@@ -121,7 +135,7 @@ export class MoviesService {
         releaseDate: toDate(details.releaseDate),
         posterUrl: details.posterUrl,
         backdropUrl: details.backdropUrl,
-        durationMins: details.durationMins!,
+        durationMins: details.durationMins,
         status: PublicationStatus.DRAFT,
       },
       update: metadata,
@@ -222,11 +236,11 @@ function toDate(value: string | null | undefined): Date | null | undefined {
   return new Date(`${value}T00:00:00.000Z`);
 }
 
-function isUniqueConstraintError(error: unknown): boolean {
+function hasPrismaErrorCode(error: unknown, code: string): boolean {
   return (
     typeof error === 'object' &&
     error !== null &&
     'code' in error &&
-    error.code === 'P2002'
+    error.code === code
   );
 }

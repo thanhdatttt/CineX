@@ -1,3 +1,5 @@
+export const MAX_TMDB_ID = 2_147_483_647;
+
 export interface TmdbMovieMetadata {
   tmdbId: number;
   title: string;
